@@ -11,6 +11,8 @@ import re
 import random
 from django.db import IntegrityError
 from django.utils.timezone import now
+from django.db.models import Sum
+
 
 
 
@@ -488,6 +490,10 @@ def tickets(request, event_id):
 def comprar_ticket(request, event_id):
     event = get_object_or_404(Event, pk=event_id)
 
+    user = request.user
+    tickets_previos = Ticket.objects.filter(user=user, event=event).aggregate(total=Sum('quantity'))['total'] or 0
+    tickets_disponibles = max(0, 4 - tickets_previos)  
+
     if request.method == 'POST':
         # Obtener datos del formulario
         ticket_code = request.POST.get('ticket_code')
@@ -497,6 +503,25 @@ def comprar_ticket(request, event_id):
             quantity = int(quantity)
         except ValueError:
             quantity = 0
+        if quantity <= 0:
+            messages.error(request, "La cantidad de entradas debe ser mayor a 0.")
+            return render(request, 'app/ticket_compra.html', {
+                'event': event,
+                'event_id': event_id
+            })
+        
+        if tickets_previos + quantity > 4:
+            disponibles = max(0, 4 - tickets_previos)
+            messages.error(
+                request,
+                f"No puedes comprar más de 4 entradas por evento. Ya compraste {tickets_previos} y solo puedes adquirir {disponibles} más."
+            )
+            return render(request, 'app/ticket_compra.html', {
+                'event': event,
+                'event_id': event_id
+            })
+
+
 
         # Datos de pago (estos se enviarían a una API externa en un caso real)
         payment_data = {
@@ -541,7 +566,8 @@ def comprar_ticket(request, event_id):
         return redirect('events')
     return render(request, 'app/ticket_compra.html', {
         'event': event,
-        'event_id': event_id
+        'event_id': event_id,
+        'tickets_disponibles': tickets_disponibles  
     })
 
 def simular_procesamiento_pago(payment_data):
