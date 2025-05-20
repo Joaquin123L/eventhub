@@ -49,14 +49,35 @@
                            <p class="mb-0">{{ event.category.name }}</p>
                        </div>
                    </div>
+                   {% if user_is_organizer %}
+                   <div class="d-flex align-items-center mb-3">
+                       <div class="bg-light rounded-circle p-2 me-3">
+                           <i class="bi bi-ticket-perforated text-primary"></i>
+                       </div>
+                       <div>
+                           <h6 class="mb-0">Entradas vendidas</h6>
+                           <p class="mb-0">{{ tickets_vendidos }}</p>
+                       </div>
+                   </div>
+                   {% if porcentaje_ocupado >= 90 %}
+                    <p class="text-danger fw-bold mb-0">DEMANDA ALTA</p>
+                    {% elif porcentaje_ocupado <= 10 and event.capacity > 0 %}
+                        <p class="text-warning fw-bold mb-0"> DEMANDA BAJA </p>
+                    {% endif %}
+                   
+                   {% endif %}
                    <div>
                        {% if not user_is_organizer %}
+                       {%if tickets_vendidos < event.capacity %}
                            <a
                                href="{% url 'ticket_compra' event.id %}"
                                class="btn btn-outline-primary me-2"
                            >
                                <i class="bi bi-ticket me-1"></i>Comprar Entrada
                            </a>
+                           {% else %}
+                            <p class="text-danger fw-bold mb-0">Entradas agotadas</p>
+                        {% endif %}
                        {% endif %}
                    </div>
 

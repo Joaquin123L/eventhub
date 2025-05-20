@@ -5,7 +5,7 @@ from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from app.models import Event, User
+from app.models import Event, User, Ticket
 
 
 class BaseEventTestCase(TestCase):
@@ -331,3 +331,23 @@ class EventDeleteViewTest(BaseEventTestCase):
 
         # Verificar que el evento sigue existiendo
         self.assertTrue(Event.objects.filter(pk=self.event1.id).exists())
+
+    def test_event_detail_with_capacity_and_tickets(self):
+    #Test que verifica porcentaje de ocupación con capacidad definida y tickets vendidos
+        event = Event.objects.create(
+            title="Evento con capacidad",
+            description="Evento de prueba",
+            scheduled_at=timezone.now() + datetime.timedelta(days=1),
+            organizer=self.organizer,
+            capacity=100,
+    )
+
+        # Crear tickets por 40 entradas
+        Ticket.objects.create(event=event, user=self.organizer, quantity=40)
+
+        response = self.client.login(username="organizador", password="password123")  # Autenticar
+        response = self.client.get(reverse("event_detail", args=[event.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("porcentaje_ocupado", response.context)
+        self.assertEqual(response.context["porcentaje_ocupado"], 40.0)
+        self.assertEqual(response.context["tickets_vendidos"], 40)
