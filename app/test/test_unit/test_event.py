@@ -140,3 +140,24 @@ class EventModelTest(TestCase):
         self.assertEqual(updated_event.title, original_title)
         self.assertEqual(updated_event.description, new_description)
         self.assertEqual(updated_event.scheduled_at, original_scheduled_at)
+
+    
+    def test_event_creation_fails_with_negative_capacity(self):
+        scheduled_at = timezone.now() + datetime.timedelta(days=1)
+
+        is_valid, errors = Event.new(
+            title="Evento inválido",
+            description="Capacidad negativa",
+            scheduled_at=scheduled_at,
+            organizer=self.organizer,
+            capacity=-10  # 
+        )
+        self.assertFalse(is_valid)
+        self.assertIn("capacity", errors)
+
+        # El test pasa si al buscar el evento salta DoesNotExist:
+        with self.assertRaises(Event.DoesNotExist):
+            Event.objects.get(title="Evento inválido")
+
+    
+
