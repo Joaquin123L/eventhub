@@ -833,7 +833,14 @@ def notification_form(request, id=None):
         #usuarios segun tipo de destinatario
         # Usuarios con tickets del evento seleccionado
         if recipient_type == "all":
-             users = User.objects.filter(tickets__event=event).distinct()
+            users = User.objects.filter(tickets__event=event).distinct()
+            if not users.exists():
+                return render(request, "app/notification_form.html", {
+                    "events": Event.objects.filter(scheduled_at__gte=now()),
+                    "users": User.objects.all(),
+                    "errors": ["No hay asistentes al evento."],
+                    "notification": notification,
+                })
         else:
             user_ids = request.POST.getlist("users")
             users = User.objects.filter(id__in=user_ids, tickets__event=event).distinct()
