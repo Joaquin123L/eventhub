@@ -973,7 +973,7 @@ def user_notifications(request):
         request,
         "app/user_notifications.html",
         {
-            "notifications": notification_users,
+            "not_users": notification_users,
             "unread_count": unread_count,
             "has_notifications": notification_users.exists(),
         },
