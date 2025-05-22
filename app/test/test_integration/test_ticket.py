@@ -44,6 +44,7 @@ class CompraTicketLimiteTest(TestCase):
         }
 
     
+class PruebaTicketInt(CompraTicketLimiteTest):
 
     def test_puede_comprar_hasta_4_tickets(self):
         post_data_1 = {
