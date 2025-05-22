@@ -83,13 +83,13 @@ class EventBaseTest(BaseE2ETest):
         delete_form = row0.locator("form")
 
         expect(detail_button).to_be_visible()
-        expect(detail_button).to_have_attribute("href", f"/events/{self.event1.id}/")
+        expect(detail_button).to_have_attribute("href", f"/events/{self.event1.pk}/")
 
         if user_type == "organizador":
             expect(edit_button).to_be_visible()
-            expect(edit_button).to_have_attribute("href", f"/events/{self.event1.id}/edit/")
+            expect(edit_button).to_have_attribute("href", f"/events/{self.event1.pk}/edit/")
 
-            expect(delete_form).to_have_attribute("action", f"/events/{self.event1.id}/delete/")
+            expect(delete_form).to_have_attribute("action", f"/events/{self.event1.pk}/delete/")
             expect(delete_form).to_have_attribute("method", "POST")
 
             delete_button = delete_form.get_by_role("button", name="Eliminar")
@@ -198,6 +198,33 @@ class EventPermissionsTest(EventBaseTest):
         create_button = self.page.get_by_role("link", name="Crear Evento")
         expect(create_button).to_have_count(0)
 
+    #test que verifica que la alerta de demanda solo sea visible para organizadores
+    def test_demand_label_visible_only_for_organizer(self):
+        self.event100 = Event.objects.create(
+        title="Evento con alta demanda",
+        description="Evento de prueba",
+        scheduled_at=timezone.now() + datetime.timedelta(days=1),
+        capacity=100,
+        organizer=self.organizer
+    )
+        # Loguearse como organizador
+        self.login_user("organizador", "password123")
+        self.page.goto(f"{self.live_server_url}/events/{self.event100.pk}/")
+
+        # Verificar que aparece el mensaje de DEMANDA ALTA
+        expect(self.page.get_by_text("DEMANDA BAJA")).to_be_visible()
+
+        # Cerrar sesión
+        self.page.get_by_role("button", name="Salir").click()
+
+        # Loguearse como usuario común
+        self.login_user("usuario", "password123")
+        self.page.goto(f"{self.live_server_url}/events/{self.event1.pk}/")
+
+        # Verificar que NO aparece el mensaje de DEMANDA ALTA
+        expect(self.page.get_by_text("DEMANDA BAJA")).to_have_count(0)
+
+
 
 class EventCRUDTest(EventBaseTest):
     """Tests relacionados con las operaciones CRUD (Crear, Leer, Actualizar, Eliminar) de eventos"""
@@ -253,7 +280,7 @@ class EventCRUDTest(EventBaseTest):
         self.page.get_by_role("link", name="Editar").first.click()
 
         # Verificar que estamos en la página de edición
-        expect(self.page).to_have_url(f"{self.live_server_url}/events/{self.event1.id}/edit/")
+        expect(self.page).to_have_url(f"{self.live_server_url}/events/{self.event1.pk}/edit/")
 
         header = self.page.locator("h1")
         expect(header).to_have_text("Editar evento")

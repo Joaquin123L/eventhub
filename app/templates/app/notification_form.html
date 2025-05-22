@@ -95,4 +95,30 @@
         </div>
     </div>
 </div>
+
+<!-- Agrega este script justo antes del cierre de </div> final del formulario -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Selecciona los elementos relevantes
+    const allAttendeesRadio = document.getElementById('all_attendees');
+    const specificUserRadio = document.getElementById('specific_user');
+    const userSelectorContainer = document.querySelector('select#users').closest('.mb-3');
+    
+    // Función para mostrar u ocultar el selector de usuarios
+    function toggleUserSelector() {
+        if (allAttendeesRadio.checked) {
+            userSelectorContainer.style.display = 'none';
+        } else {
+            userSelectorContainer.style.display = 'block';
+        }
+    }
+    
+    // Configura el estado inicial
+    toggleUserSelector();
+    
+    // Agrega listeners para los cambios en los radio buttons
+    allAttendeesRadio.addEventListener('change', toggleUserSelector);
+    specificUserRadio.addEventListener('change', toggleUserSelector);
+});
+</script>
 {% endblock %}

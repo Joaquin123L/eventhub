@@ -11,6 +11,7 @@ import re
 import random
 from django.db import IntegrityError
 from django.utils.timezone import now
+from django.db.models import Sum
 
 
 
@@ -86,10 +87,17 @@ def home(request):
 @login_required
 def event_detail(request, id):
     event = get_object_or_404(Event, pk=id)
+    tickets_vendidos = Ticket.objects.filter(event=event).aggregate(total=Sum('quantity'))['total'] or 0
+    
+    # Porcentaje de ocupación
+    if event.capacity is None or event.capacity == 0:
+        porcentaje_ocupado = 0
+    else:
+        porcentaje_ocupado = (tickets_vendidos / event.capacity) * 100
     todos_los_comentarios = Comment.objects.filter(event=event).order_by('-created_at')
     ratings = Rating.objects.filter(event=event).order_by('-created_at')
 
-    return render(request, "app/event_detail.html", {"event": event, "todos_los_comentarios": todos_los_comentarios, "ratings": ratings, "user_is_organizer": request.user.is_organizer})
+    return render(request, "app/event_detail.html", {"event": event, "todos_los_comentarios": todos_los_comentarios, "ratings": ratings, "user_is_organizer": request.user.is_organizer, "porcentaje_ocupado": porcentaje_ocupado, "tickets_vendidos": tickets_vendidos})
 
 
 
@@ -122,6 +130,7 @@ def event_form(request, id=None):
         time = request.POST.get("time")
         category_id = request.POST.get("category")
         venue_id = request.POST.get("venue")
+        capacity = request.POST.get("capacity")
 
         [year, month, day] = date.split("-")
         [hour, minutes] = time.split(":")
@@ -132,9 +141,22 @@ def event_form(request, id=None):
 
         category = get_object_or_404(Category, pk=category_id)
         venue = get_object_or_404(Venue, pk=venue_id)
+        capacity = int(request.POST.get("capacity") or 0)
+        if venue.capacity is not None and capacity > venue.capacity:
+            categories = Category.objects.filter(is_active=True)
+            venues = Venue.objects.all()
+            error = f"La capacidad del evento ({capacity}) excede la del lugar ({venue.capacity})."
+            return render(
+                request,
+                "app/event_form.html",
+                {
+                    "error": error,
+                }
+            )
 
         if id is None:
-            success, errors = Event.new(title, description, scheduled_at, request.user, category, venue)
+            success, errors = Event.new(title, description, scheduled_at, request.user, category, venue,capacity)
+        #si la capacity es mayor a la capacidad del venue, se muestra un error
         else:
 
             event = get_object_or_404(Event, pk=id)
@@ -142,7 +164,7 @@ def event_form(request, id=None):
             old_scheduled_at = event.scheduled_at
             old_venue = event.venue
             # Validamos antes de actualizar
-            success, errors = event.update(title, description, scheduled_at, request.user, category, venue)
+            success, errors = event.update(title, description, scheduled_at, request.user, category, venue, capacity)
             if success:
                 hubo_cambio_fecha_lugar = old_scheduled_at != scheduled_at or old_venue != venue
                 if hubo_cambio_fecha_lugar:
@@ -870,7 +892,14 @@ def notification_form(request, id=None):
         #usuarios segun tipo de destinatario
         # Usuarios con tickets del evento seleccionado
         if recipient_type == "all":
-             users = User.objects.filter(tickets__event=event).distinct()
+            users = User.objects.filter(tickets__event=event).distinct()
+            if not users.exists():
+                return render(request, "app/notification_form.html", {
+                    "events": Event.objects.filter(scheduled_at__gte=now()),
+                    "users": User.objects.all(),
+                    "errors": ["No hay asistentes al evento."],
+                    "notification": notification,
+                })
         else:
             user_ids = request.POST.getlist("users")
             users = User.objects.filter(id__in=user_ids, tickets__event=event).distinct()
@@ -1003,7 +1032,7 @@ def user_notifications(request):
         request,
         "app/user_notifications.html",
         {
-            "notifications": notification_users,
+            "not_users": notification_users,
             "unread_count": unread_count,
             "has_notifications": notification_users.exists(),
         },
