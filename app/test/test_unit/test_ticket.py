@@ -20,6 +20,8 @@ class TicketLimitTest(TestCase):
             organizer=self.organizer
         )
 
+class PruebaTicketUnit(TicketLimitTest):
+
     def entradas_totales(self):
         """Suma la cantidad total de entradas que el usuario compró para el evento"""
         return sum(t.quantity for t in Ticket.objects.filter(user=self.user, event=self.event))
