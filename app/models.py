@@ -1,6 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from datetime import datetime
+from django.utils import timezone
 
 
 class User(AbstractUser):
@@ -50,6 +51,9 @@ class Event(models.Model):
 
         if description == "":
             errors["description"] = "Por favor ingrese una descripcion"
+        
+        if scheduled_at < timezone.now():
+            errors["scheduled_at"] = "La fecha y hora del evento deben ser posteriores a la actual"
 
         return errors
 
@@ -72,6 +76,17 @@ class Event(models.Model):
         return True, None
 
     def update(self, title, description, scheduled_at, organizer, category=None, venue=None):
+
+        # Usar los valores actuales si no se pasan nuevos
+        new_title = title or self.title
+        new_description = description or self.description
+        new_scheduled_at = scheduled_at or self.scheduled_at
+        
+        errors = Event.validate(new_title, new_description, new_scheduled_at)
+
+        if len(errors.keys()) > 0:
+            return False, errors
+        
         self.title = title or self.title
         self.description = description or self.description
         self.scheduled_at = scheduled_at or self.scheduled_at
@@ -80,6 +95,8 @@ class Event(models.Model):
         self.venue = venue if venue is not None else self.venue
 
         self.save()
+
+        return True, None
 
 class Category(models.Model):
     name =models.CharField(max_length=100)
