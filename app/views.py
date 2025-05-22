@@ -136,10 +136,47 @@ def event_form(request, id=None):
         if id is None:
             success, errors = Event.new(title, description, scheduled_at, request.user, category, venue)
         else:
-            event = get_object_or_404(Event, pk=id)
-            event.update(title, description, scheduled_at, request.user, category, venue)
 
-        return redirect("events")
+            event = get_object_or_404(Event, pk=id)
+            # Guardamos los valores anteriores
+            old_scheduled_at = event.scheduled_at
+            old_venue = event.venue
+            # Validamos antes de actualizar
+            success, errors = event.update(title, description, scheduled_at, request.user, category, venue)
+            if success:
+                hubo_cambio_fecha_lugar = old_scheduled_at != scheduled_at or old_venue != venue
+                if hubo_cambio_fecha_lugar:
+                    usuarios = User.objects.filter(tickets__event=event).distinct()
+                    titulo = "Cambio en evento"
+                    mensaje = "Se modificó la fecha/hora o el lugar del evento."
+                    prioridad = "HIGH"
+                    Notification.new(titulo, mensaje, prioridad, usuarios, event)  
+        if success:
+            return redirect("events")
+        
+        # Si hubo errores
+        event_data = {
+            "id": id,
+            "title": title,
+            "description": description,
+            "scheduled_at": scheduled_at,
+            "category": category,
+            "venue": venue,
+        }
+        
+        categories = Category.objects.filter(is_active=True)
+        venues = Venue.objects.all()
+        return render(
+            request,
+            "app/event_form.html",
+            {
+                "event": event_data,
+                "errors": errors,
+                "user_is_organizer": user.is_organizer,
+                "categories": categories,
+                "venues": venues,
+            },
+        )
 
     event = {}
     if id is not None:
