@@ -11,6 +11,12 @@
                     Crear evento
                 {% endif %}
             </h1>
+            {% if error %}
+                <div style="color: red; background-color: #ffe6e6; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
+                    {{ error }}
+                </div>
+            {% endif %}
+
 
             <div class="card">
                 <div class="card-body">
@@ -91,6 +97,15 @@
                                     </option>
                                     {% endfor %}
                                 </select>
+                            </div>
+                            <div>
+                                <label for="capacity" class="form-label">Capacidad del Evento</label>
+                                <input class="form-control"
+                                    id="capacity"
+                                    required=""
+                                    type="number"
+                                    value="{{ event.capacity }}"
+                                    name="capacity" />
                             </div>
 
                             <div>

@@ -37,12 +37,13 @@ class Event(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     category = models.ForeignKey('Category', on_delete=models.PROTECT, related_name="events", null=True, blank=True)
     venue = models.ForeignKey('Venue', on_delete=models.CASCADE, related_name='events', null=True, blank=True)
+    capacity = models.IntegerField(default=0, blank=True, null=True)
 
     def __str__(self):
         return self.title
 
     @classmethod
-    def validate(cls, title, description, scheduled_at):
+    def validate(cls, title, description, scheduled_at, capacity=None):
         errors = {}
 
         if title == "":
@@ -51,11 +52,14 @@ class Event(models.Model):
         if description == "":
             errors["description"] = "Por favor ingrese una descripcion"
 
+        if capacity is not None and capacity <= 0:
+            errors["capacity"] = "La capacidad debe ser mayor a 0"
+
         return errors
 
     @classmethod
-    def new(cls, title, description, scheduled_at, organizer,category=None,venue=None):
-        errors = Event.validate(title, description, scheduled_at)
+    def new(cls, title, description, scheduled_at, organizer,category=None,venue=None, capacity=None):
+        errors = Event.validate(title, description, scheduled_at, capacity)
 
         if len(errors.keys()) > 0:
             return False, errors
@@ -67,17 +71,19 @@ class Event(models.Model):
             organizer=organizer,
             category=category,
             venue=venue,
+            capacity=capacity
         )
 
         return True, None
 
-    def update(self, title, description, scheduled_at, organizer, category=None, venue=None):
+    def update(self, title, description, scheduled_at, organizer, category=None, venue=None, capacity=None):
         self.title = title or self.title
         self.description = description or self.description
         self.scheduled_at = scheduled_at or self.scheduled_at
         self.organizer = organizer or self.organizer
         self.category = category if category is not None else self.category
         self.venue = venue if venue is not None else self.venue
+        self.capacity = capacity if capacity is not None else self.capacity
 
         self.save()
 
@@ -352,11 +358,11 @@ class Notification(models.Model):
     message = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES)
-    read = models.BooleanField(default=False)
 
     users = models.ManyToManyField(
         User,
-        related_name="notifications"
+        related_name="notifications",
+        through='NotificationUser'
     )
 
     event = models.ForeignKey(
@@ -407,28 +413,22 @@ class Notification(models.Model):
             title=title,
             message=message,
             priority=priority,
-            event=event
+            event=event # Django se encarga del id internamente
         )
-        # Asociar usuarios directamente (ManyToMany)
+
+#Esto actualiza la relación ManyToMany a través de la tabla intermedia 'NotificationUser
         notification.users.set(users)
-        # Asociamos los usuarios
-        #notification.users.add(*users)
-        for user in users:
-            
-            NotificationUser.objects.create(user=user, notification=notification)
 
         return True, None
 
-
-    def update(self, title=None, message=None, priority=None, read=None, users=None, event=None):
+    def update(self, title=None, message=None, priority=None, users=None, event=None):
         self.title = title or self.title
         self.message = message or self.message
         self.priority = priority or self.priority
-        self.read = read if read is not None else self.read
 
         # Actualizar el evento si se proporciona uno nuevo
         if event is not None:
-            self.event = event
+            self.event_id = event.id
 
         self.save()
 
