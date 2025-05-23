@@ -88,7 +88,7 @@ def home(request):
 def event_detail(request, id):
     event = get_object_or_404(Event, pk=id)
     tickets_vendidos = Ticket.objects.filter(event=event).aggregate(total=Sum('quantity'))['total'] or 0
-    
+
     # Porcentaje de ocupación
     if event.capacity is None or event.capacity == 0:
         porcentaje_ocupado = 0
@@ -639,7 +639,17 @@ def update_ticket(request, ticket_id):
 
     return render(request, 'app/Mis_tickets.html', {'ticket': ticket})
 
+@login_required
+def event_cancel(request, pk):
+    event = get_object_or_404(Event, pk=pk)
 
+    # Verificamos que el usuario sea el organizador
+    if request.user != event.organizer:
+        return redirect('event_list')
+
+    event.status = 'Cancelado'
+    event.save()
+    return redirect('events')
 
 def rating_create(request, event_id):
     event = get_object_or_404(Event, id=event_id)
@@ -990,7 +1000,7 @@ def user_notifications(request):
     ).select_related('notification').order_by("-notification__created_at")
     # Contar notificaciones no leídas
     unread_count = notification_users.filter(read=False).count()
-    
+
     return render(
         request,
         "app/user_notifications.html",

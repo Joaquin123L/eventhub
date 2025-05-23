@@ -84,6 +84,12 @@
                                         <i class="bi bi-trash"></i>
                                     </button>
                                 </form>
+                                <form action="{% url 'event_cancel' event.id %}" method="POST" class="d-inline">
+                                    {% csrf_token %}
+                                    <button class="btn btn-sm btn-outline-warning" type="submit" {% if event.status == "Cancelado" %}disabled{% endif %}>
+                                        <i class="bi bi-x-circle"></i> 
+                                    </button>
+                                </form>
                             {% endif %}
                         </div>
                     </td>
