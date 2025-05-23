@@ -186,7 +186,7 @@ def events(request):
     if user.is_organizer:
         events = Event.objects.filter(organizer=user)
     else:
-        events = Event.objects.filter(scheduled_at__gte=timezone.now())
+        events = Event.objects.filter(scheduled_at__gte=timezone.now()).exclude(status__in=["Cancelado", "Finalizado"])
 
     if category_id:
         events = events.filter(category_id=category_id)
