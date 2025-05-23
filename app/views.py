@@ -635,7 +635,32 @@ def update_ticket(request, ticket_id):
     if request.method == 'POST':
         quantity = request.POST.get('quantity')
         type = request.POST.get('type')
+
         if quantity and type:
+            try:
+                quantity = int(quantity)
+            except (TypeError, ValueError):
+                messages.error(request, "Cantidad inválida.")
+                return redirect('Mis_tickets')
+
+            if quantity <= 0:
+                messages.error(request, "La cantidad debe ser mayor que 0.")
+                return redirect('Mis_tickets')
+
+            # Verificar cuántos tickets tiene el usuario para este evento, excluyendo el actual
+            tickets_previos = Ticket.objects.filter(
+                user=ticket.user,
+                event=ticket.event
+            ).exclude(pk=ticket.pk).aggregate(total=Sum('quantity'))['total'] or 0
+
+            if tickets_previos + quantity > 4:
+                disponibles = max(0, 4 - tickets_previos)
+                messages.error(
+                    request,
+                    f"No puedes tener más de 4 entradas por evento. Solo puedes actualizar a un máximo de {disponibles}."
+                )
+                return redirect('Mis_tickets')
+
             ticket.quantity = quantity
             ticket.type = type
             ticket.save()
