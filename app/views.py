@@ -497,6 +497,10 @@ def tickets(request, event_id):
 def comprar_ticket(request, event_id):
     event = get_object_or_404(Event, pk=event_id)
 
+    user = request.user
+    tickets_previos = Ticket.objects.filter(user=user, event=event).aggregate(total=Sum('quantity'))['total'] or 0
+    tickets_disponibles = max(0, 4 - tickets_previos)  
+
     if request.method == 'POST':
         # Obtener datos del formulario
         ticket_code = request.POST.get('ticket_code')
@@ -506,7 +510,40 @@ def comprar_ticket(request, event_id):
             quantity = int(quantity)
         except ValueError:
             quantity = 0
+        if quantity <= 0:
+            messages.error(request, "La cantidad de entradas debe ser mayor a 0.")
+            return render(request, 'app/ticket_compra.html', {
+                'event': event,
+                'event_id': event_id
+            })
+        
+        if tickets_previos + quantity > 4:
+            disponibles = max(0, 4 - tickets_previos)
+            messages.error(
+                request,
+                f"No puedes comprar más de 4 entradas por evento. Ya compraste {tickets_previos} y solo puedes adquirir {disponibles} más."
+            )
+            return render(request, 'app/ticket_compra.html', {
+                'event': event,
+                'event_id': event_id
+            })
+        
+        # verificar si hay cupo, si no hay cupo se muestra un error que diga no quedan entradas
+        if event.capacity is not None:
+            tickets_vendidos = Ticket.objects.filter(event=event).aggregate(total=Sum('quantity'))['total'] or 0
+            if tickets_vendidos + quantity > event.capacity:
+                # mostrar cantidad de entradas disponibles
+                tickets_disponibles = event.capacity - tickets_vendidos
+                if tickets_disponibles == 0:
+                    error = "No quedan entradas disponibles."
+                else:
+                    error = f"No quedan entradas disponibles. Solo quedan {tickets_disponibles} entradas."
 
+                return render(request, 'app/ticket_compra.html', {
+                    'event': event,
+                    'event_id': event_id,
+                    'error': error
+                })
         # Datos de pago (estos se enviarían a una API externa en un caso real)
         payment_data = {
             'card_number': request.POST.get('card_number'),
@@ -550,7 +587,8 @@ def comprar_ticket(request, event_id):
         return redirect('events')
     return render(request, 'app/ticket_compra.html', {
         'event': event,
-        'event_id': event_id
+        'event_id': event_id,
+        'tickets_disponibles': tickets_disponibles  
     })
 
 def simular_procesamiento_pago(payment_data):
@@ -618,7 +656,32 @@ def update_ticket(request, ticket_id):
     if request.method == 'POST':
         quantity = request.POST.get('quantity')
         type = request.POST.get('type')
+
         if quantity and type:
+            try:
+                quantity = int(quantity)
+            except (TypeError, ValueError):
+                messages.error(request, "Cantidad inválida.")
+                return redirect('Mis_tickets')
+
+            if quantity <= 0:
+                messages.error(request, "La cantidad debe ser mayor que 0.")
+                return redirect('Mis_tickets')
+
+            # Verificar cuántos tickets tiene el usuario para este evento, excluyendo el actual
+            tickets_previos = Ticket.objects.filter(
+                user=ticket.user,
+                event=ticket.event
+            ).exclude(pk=ticket.pk).aggregate(total=Sum('quantity'))['total'] or 0
+
+            if tickets_previos + quantity > 4:
+                disponibles = max(0, 4 - tickets_previos)
+                messages.error(
+                    request,
+                    f"No puedes tener más de 4 entradas por evento. Solo puedes actualizar a un máximo de {disponibles}."
+                )
+                return redirect('Mis_tickets')
+
             ticket.quantity = quantity
             ticket.type = type
             ticket.save()
