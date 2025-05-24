@@ -62,6 +62,13 @@
                         Acepto los <a href="#" class="text-primary">términos y condiciones</a> y la <a href="#" class="text-primary">política de privacidad</a>
                     </label>
                 </div>
+
+                <!-- condicion que si hay error se muestre   -->
+                {% if error %}
+                    <div class="alert alert-danger" role="alert">
+                        {{ error }}
+                    </div>
+                {% endif %}
                 
                 <button type="submit" class="btn btn-primary w-100" id="submit-btn">Confirmar compra</button>
             </form>
