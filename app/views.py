@@ -70,20 +70,6 @@ def home(request):
 
 
 
-#@login_required
-#def events(request):
-    #si el usuario es organizador recupera todos sus eventos, si el usuario no es organizador recupera todos los eventos siempre y cuando la fecha del evento sea posterior a la actual. De esta forma permitimos que el usuario que no es  organizador pueda comprar entradas.
-#    if request.user.is_organizer:
-#        events = Event.objects.filter(organizer=request.user).order_by("scheduled_at")
-#    else:
-#        events = Event.objects.filter(scheduled_at__gte=timezone.now()).order_by("scheduled_at")
-#    return render(
-#        request,
- #       "app/events.html",
-  #      {"events": events, "user_is_organizer": request.user.is_organizer},
-  #  )
-
-
 @login_required
 def event_detail(request, id):
     event = get_object_or_404(Event, pk=id)
@@ -96,8 +82,9 @@ def event_detail(request, id):
         porcentaje_ocupado = (tickets_vendidos / event.capacity) * 100
     todos_los_comentarios = Comment.objects.filter(event=event).order_by('-created_at')
     ratings = Rating.objects.filter(event=event).order_by('-created_at')
+    tiene_ticket = Ticket.objects.filter(user=request.user, event=event).exists()
 
-    return render(request, "app/event_detail.html", {"event": event, "todos_los_comentarios": todos_los_comentarios, "ratings": ratings, "user_is_organizer": request.user.is_organizer, "porcentaje_ocupado": porcentaje_ocupado, "tickets_vendidos": tickets_vendidos})
+    return render(request, "app/event_detail.html", {"event": event, "todos_los_comentarios": todos_los_comentarios, "ratings": ratings, "user_is_organizer": request.user.is_organizer, "porcentaje_ocupado": porcentaje_ocupado, "tickets_vendidos": tickets_vendidos, "tiene_ticket": tiene_ticket}) 
 
 
 
