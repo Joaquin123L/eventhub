@@ -12,6 +12,7 @@ import random
 from django.db import IntegrityError
 from django.utils.timezone import now
 from django.db.models import Sum
+from django.db.models import Avg
 
 
 
@@ -83,8 +84,10 @@ def event_detail(request, id):
     todos_los_comentarios = Comment.objects.filter(event=event).order_by('-created_at')
     ratings = Rating.objects.filter(event=event).order_by('-created_at')
     tiene_ticket = Ticket.objects.filter(user=request.user, event=event).exists()
+    promedio_rating = Rating.objects.filter(event=event).aggregate(Avg('rating'))['rating__avg'] or 0
+    porcentaje_rating = round(promedio_rating * 20, 2)  # Escala de 0 a 100
 
-    return render(request, "app/event_detail.html", {"event": event, "todos_los_comentarios": todos_los_comentarios, "ratings": ratings, "user_is_organizer": request.user.is_organizer, "porcentaje_ocupado": porcentaje_ocupado, "tickets_vendidos": tickets_vendidos, "tiene_ticket": tiene_ticket}) 
+    return render(request, "app/event_detail.html", {"event": event, "todos_los_comentarios": todos_los_comentarios, "ratings": ratings, "user_is_organizer": request.user.is_organizer, "porcentaje_ocupado": porcentaje_ocupado, "tickets_vendidos": tickets_vendidos, "tiene_ticket": tiene_ticket, "promedio_rating": promedio_rating, "porcentaje_rating": porcentaje_rating,}) 
 
 
 
