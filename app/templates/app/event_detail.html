@@ -91,6 +91,19 @@
    <div class="card my-4">
        <div class="card-body">
            <h3 class="card-title">Calificaciones y Reseñas ({{ event.ratings.count }})</h3>
+           {% if user_is_organizer %}
+  <div class="rating text-warning mt-2">
+    {% for i in "12345" %}
+  {% if promedio_rating|floatformat:1 >= i|add:"0"|floatformat:1 %}
+    <label style="font-size: 1.5rem;">★</label>
+  {% else %}
+    <label style="font-size: 1.5rem; color: #ccc;">★</label>
+  {% endif %}
+{% endfor %}
+
+    <span class="ms-2">({{ porcentaje_rating }}%)</span>
+  </div>
+{% endif %}
            <hr>
 
 
