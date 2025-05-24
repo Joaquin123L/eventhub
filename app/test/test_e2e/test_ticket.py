@@ -54,3 +54,37 @@ class PruebaTicketE2E(ComprarTicketE2ETest):
 
         form_valid = self.page.locator("#payment-form").evaluate("form => form.checkValidity()")
         assert not form_valid, "El formulario debería ser inválido si se ingresan más de 4 entradas."
+
+    #Agrego test para verificar que si el usuario quiere comprar mas entradas que las que hay disponibles aparece un mensaje de error 
+    def test_no_puede_comprar_mas_de_entradas_disponibles(self):
+        # Crear evento con 1 entrada disponible
+        self.event.capacity = 1
+        self.event.save()
+
+        self.login_user("usuario", "password123")
+        self.page.goto(f"{self.live_server_url}/ticket_compra/{self.event.pk}")
+
+        # Llenar datos del formulario
+        self.page.fill("input[name='card_name']", "Juan Pérez")
+        self.page.fill("input[name='card_number']", "4242424242424242")
+        self.page.fill("input[name='card_expiry']", "12/30")
+        self.page.fill("input[name='card_cvv']", "123")
+        self.page.check("input[name='accept_terms']")
+        self.page.select_option("select[name='type']", "general")
+        self.page.fill("#quantity", "2")  # más de la capacidad
+
+        # Enviar formulario
+        self.page.click("#submit-btn")
+
+
+        # Esperar al mensaje de error
+        error_element = self.page.locator(".alert-danger") 
+        error_element.wait_for(timeout=10000)
+
+        # Validar mensaje
+        assert error_element.is_visible(), "El mensaje de error no está visible"
+        expected_text = f"Solo quedan {self.event.capacity} entradas"
+        assert expected_text in error_element.inner_text(), f"Mensaje incorrecto: {error_element.inner_text()}"
+
+
+

@@ -102,3 +102,36 @@ class PruebaTicketInt(CompraTicketLimiteTest):
 
         total_tickets = Ticket.objects.filter(user=self.user, event=self.event).aggregate(total=Sum('quantity'))['total']
         self.assertEqual(total_tickets, 3)  # No aumentó
+
+
+    #Agrego test para validar que no se pueda comprar mas entradas de la cantidad de entradas disponibles
+    def test_no_puede_comprar_mas_de_entradas_disponibles(self):
+        # Crea un evento con 3 entradas disponibles
+        event = Event.objects.create(
+            title="Evento test",
+            description="Descripción de prueba",
+            scheduled_at=timezone.now() + datetime.timedelta(days=1),
+            organizer=self.organizer,
+            capacity=3
+        )
+
+        # Crea un ticket con 3 entradas
+        Ticket.objects.create(
+            ticket_code="CODE123",
+            quantity=3,
+            user=self.user,
+            event=event
+        )
+
+        # Intenta comprar 1 entrada más
+        post_data = {
+            "quantity": 1,
+            "ticket_code": "CODE456",
+            "type": "general",
+            **self._get_payment_data()
+        }
+        response = self.client.post(self.ticket_url, post_data)
+        self.assertEqual(response.status_code, 200)  # No redirige porque excede límite
+
+        total_tickets = Ticket.objects.filter(user=self.user, event=event).aggregate(total=Sum('quantity'))['total']
+        self.assertEqual(total_tickets, 3) 

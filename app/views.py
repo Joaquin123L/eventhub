@@ -540,9 +540,23 @@ def comprar_ticket(request, event_id):
                 'event': event,
                 'event_id': event_id
             })
+        
+        # verificar si hay cupo, si no hay cupo se muestra un error que diga no quedan entradas
+        if event.capacity is not None:
+            tickets_vendidos = Ticket.objects.filter(event=event).aggregate(total=Sum('quantity'))['total'] or 0
+            if tickets_vendidos + quantity > event.capacity:
+                # mostrar cantidad de entradas disponibles
+                tickets_disponibles = event.capacity - tickets_vendidos
+                if tickets_disponibles == 0:
+                    error = "No quedan entradas disponibles."
+                else:
+                    error = f"No quedan entradas disponibles. Solo quedan {tickets_disponibles} entradas."
 
-
-
+                return render(request, 'app/ticket_compra.html', {
+                    'event': event,
+                    'event_id': event_id,
+                    'error': error
+                })
         # Datos de pago (estos se enviarían a una API externa en un caso real)
         payment_data = {
             'card_number': request.POST.get('card_number'),
