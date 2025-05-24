@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from app.models import Event, Ticket, User
 from django.utils import timezone
 from datetime import timedelta
+from django.db.models import Sum
 
 
 User = get_user_model()
@@ -57,3 +58,29 @@ class PruebaTicketUnit(TicketLimitTest):
 
         puede_comprar = (total + 1) <= 4
         self.assertFalse(puede_comprar)
+
+    
+    # agrego test para comprobar la cantidad de entradas que quedan para un ticket, por ejemplo creo un evento con 10 entradas y luego creo un ticket con 2 entradas, entonces la cantidad de entradas que quedan para ese ticket es 8
+    def test_cantidad_entradas_disponibles(self):
+        #hace la creacion del evento con capacity = 10
+        event = Event.objects.create(
+            title="Evento test",
+            description="Descripción de prueba",
+            scheduled_at=timezone.now() + timedelta(days=1),
+            organizer=self.organizer,
+            capacity=10
+        )
+        #hace la creacion del ticket con quantity = 2
+        ticket = Ticket.objects.create(
+            ticket_code="ABC1",
+            quantity=2,
+            user=self.user,
+            event=event
+        )
+        # Calcula las entradas usadas (sumando todos los tickets del evento)
+        entradas_usadas = Ticket.objects.filter(event=event).aggregate(total=Sum('quantity'))['total'] or 0
+
+        # Calcula las entradas disponibles
+        capacidad_evento = event.capacity if event.capacity is not None else 0
+        entradas_disponibles = capacidad_evento - entradas_usadas
+        self.assertEqual(entradas_disponibles, 8)
