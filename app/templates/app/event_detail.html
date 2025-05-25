@@ -16,78 +16,107 @@
            </div>
        </div>
    </div>
-   <div class="row">
-       <div class="card">
-           <div class="card-body">
-               <h5 class="card-title">Detalles del Evento</h5>
-               <p class="card-text">{{ event.description }}</p>
-               <div class="mt-4">
-                   <div class="d-flex align-items-center mb-3">
-                       <div class="bg-light rounded-circle p-2 me-3">
-                           <i class="bi bi-calendar-event text-primary"></i>
-                       </div>
-                       <div>
-                           <h6 class="mb-0">Fecha y Hora</h6>
-                           <p class="mb-0">{{ event.scheduled_at|date:"l, j \\d\\e F \\d\\e Y, H:i" }}</p>
-                       </div>
-                   </div>
-                   <div class="d-flex align-items-center mb-3">
-                       <div class="bg-light rounded-circle p-2 me-3">
-                           <i class="bi bi-person text-primary"></i>
-                       </div>
-                       <div>
-                           <h6 class="mb-0">Organizador</h6>
-                           <p class="mb-0">{{ event.organizer }}</p>
-                       </div>
-                   </div>
-                   <div class="d-flex align-items-center mb-3">
-                       <div class="bg-light rounded-circle p-2 me-3">
-                           <i class="bi bi-tag text-primary"></i>
-                       </div>
-                       <div>
-                           <h6 class="mb-0">Categoria</h6>
-                           <p class="mb-0">{{ event.category.name }}</p>
-                       </div>
-                   </div>
-                   {% if user_is_organizer %}
-                   <div class="d-flex align-items-center mb-3">
-                       <div class="bg-light rounded-circle p-2 me-3">
-                           <i class="bi bi-ticket-perforated text-primary"></i>
-                       </div>
-                       <div>
-                           <h6 class="mb-0">Entradas vendidas</h6>
-                           <p class="mb-0">{{ tickets_vendidos }}</p>
-                       </div>
-                   </div>
-                   {% if porcentaje_ocupado >= 90 %}
-                    <p class="text-danger fw-bold mb-0">DEMANDA ALTA</p>
-                    {% elif porcentaje_ocupado <= 10 and event.capacity > 0 %}
-                        <p class="text-warning fw-bold mb-0"> DEMANDA BAJA </p>
-                    {% endif %}
-                   
-                   {% endif %}
-                   <div>
-                       {% if not user_is_organizer %}
-                       {%if tickets_vendidos < event.capacity %}
-                           <a
-                               href="{% url 'ticket_compra' event.id %}"
-                               class="btn btn-outline-primary me-2"
-                           >
-                               <i class="bi bi-ticket me-1"></i>Comprar Entrada
-                           </a>
-                           {% else %}
-                            <p class="text-danger fw-bold mb-0">Entradas agotadas</p>
+    <div class="row">
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">Detalles del Evento</h5>
+            <div class="row">
+                <div class="col-md-8">
+                    <p class="card-text">{{ event.description }}</p>
+                    <div class="mt-4">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="bg-light rounded-circle p-2 me-3">
+                                <i class="bi bi-calendar-event text-primary"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-0">Fecha y Hora</h6>
+                                <p class="mb-0">{{ event.scheduled_at|date:"l, j \\d\\e F \\d\\e Y, H:i" }}</p>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="bg-light rounded-circle p-2 me-3">
+                                <i class="bi bi-person text-primary"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-0">Organizador</h6>
+                                <p class="mb-0">{{ event.organizer }}</p>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="bg-light rounded-circle p-2 me-3">
+                                <i class="bi bi-tag text-primary"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-0">Categoría</h6>
+                                <p class="mb-0">{{ event.category.name }}</p>
+                            </div>
+                        </div>
+                        {% if user_is_organizer %}
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="bg-light rounded-circle p-2 me-3">
+                                <i class="bi bi-ticket-perforated text-primary"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-0">Entradas vendidas</h6>
+                                <p class="mb-0">{{ tickets_vendidos }}</p>
+                            </div>
+                        </div>
+                        {% if porcentaje_ocupado >= 90 %}
+                            <p class="text-danger fw-bold mb-0">DEMANDA ALTA</p>
+                        {% elif porcentaje_ocupado <= 10 and event.capacity > 0 %}
+                            <p class="text-warning fw-bold mb-0"> DEMANDA BAJA </p>
                         {% endif %}
-                       {% endif %}
-                   </div>
+                        {% endif %}
+                        <div>
+                            {% if not user_is_organizer %}
+                                {% if tickets_vendidos < event.capacity %}
+                                    <a href="{% url 'ticket_compra' event.id %}" class="btn btn-outline-primary me-2">
+                                        <i class="bi bi-ticket me-1"></i>Comprar Entrada
+                                    </a>
+                                {% else %}
+                                    <p class="text-danger fw-bold mb-0">Entradas agotadas</p>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 d-flex align-items-center justify-content-center">
+                        <div class="card text-center shadow-sm" style="font-size: 0.9rem;">
+                            <div class="card-header bg-primary text-white py-2">
+                                <i class="bi bi-hourglass-split"></i>
+                            Comienza en
+                        </div>
+                        <div class="card-body py-3">
+                            <div class="d-flex justify-content-center align-items-center gap-2">
+                                <div>
+                                    <div class="h4 fw-bold mb-0" id="days">00</div>
+                                    <div class="text-muted" style="font-size: 0.8rem;">Días</div>
+                                </div>
+                                <div>
+                                    <div class="h4 fw-bold mb-0" id="hours">00</div>
+                                    <div class="text-muted" style="font-size: 0.8rem;">Horas</div>
+                                </div>
+                                <div>
+                                    <div class="h4 fw-bold mb-0" id="minutes">00</div>
+                                    <div class="text-muted" style="font-size: 0.8rem;">Min</div>
+                                </div>
+                                <div>
+                                    <div class="h4 fw-bold mb-0" id="seconds">00</div>
+                                    <div class="text-muted" style="font-size: 0.8rem;">Seg</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
 
 
-               </div>
-           </div>
-       </div>
-   </div>
-
-
+<div class="row">
+  <div class="col-md-12 mx-auto">
    <div class="card my-4">
        <div class="card-body">
            <h3 class="card-title">Calificaciones y Reseñas ({{ event.ratings.count }})</h3>
@@ -259,8 +288,9 @@
    </div>
 
 
+
    {% if request.user != event.organizer %}
-   <div class="card mt-4">
+   <div class="card mt-3">
        <div class="card-body">
            <h5 class="card-title" id="form-title">Agregar un Comentario</h5>
            <!-- le ponemos ID para poder cambiarlo -->
@@ -343,6 +373,8 @@
            {% endif %}
        </div>
    </div>
+</div>
+</div>
 </div>
 
 
@@ -644,6 +676,36 @@
        modal.show();
    }
 </script>
+<script>
+  const eventDate = new Date("{{ event.scheduled_at|date:'c' }}"); // formato ISO
+
+  function updateCountdown() {
+    const now = new Date();
+    const distance = eventDate - now;
+
+    if (distance <= 0) {
+      document.getElementById("days").innerText = "00";
+      document.getElementById("hours").innerText = "00";
+      document.getElementById("minutes").innerText = "00";
+      document.getElementById("seconds").innerText = "00";
+      return;
+    }
+
+    const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((distance / (1000 * 60 * 60)) % 24);
+    const minutes = Math.floor((distance / (1000 * 60)) % 60);
+    const seconds = Math.floor((distance / 1000) % 60);
+
+    document.getElementById("days").innerText = String(days).padStart(2, '0');
+    document.getElementById("hours").innerText = String(hours).padStart(2, '0');
+    document.getElementById("minutes").innerText = String(minutes).padStart(2, '0');
+    document.getElementById("seconds").innerText = String(seconds).padStart(2, '0');
+  }
+
+  updateCountdown();
+  setInterval(updateCountdown, 1000);
+</script>
+
 
 
 {% endblock %}
