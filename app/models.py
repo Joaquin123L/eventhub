@@ -329,6 +329,9 @@ class RefoundRequest(models.Model):
 
     @classmethod
     def new(cls, amount, reason, refound_reason, ticket_code, user, status):
+        if cls.objects.filter(user=user, status=RefoundStatus.PENDING).exists():
+            return False, {"ATENCION": "Ya tenés una solicitud de reembolso pendiente. Cuando se resuelva podra solicitar otra."}
+
         errors = cls.validate(amount, reason, status, refound_reason, ticket_code, user)
 
         if errors:
