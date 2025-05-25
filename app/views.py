@@ -5,7 +5,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.db.models import Count
 from django.http import HttpResponseForbidden
-from .models import Event, User, Category, Comment, Venue, Ticket, Rating, RefoundRequest, RefoundReason, RefoundStatus,Notification, NotificationUser
+from .models import Event, User, Category, Comment, Venue, Ticket, Rating, RefoundRequest, RefoundReason, RefoundStatus, \
+    Notification, NotificationUser, Favorite
 from django.contrib import messages
 import re
 import random
@@ -75,7 +76,7 @@ def home(request):
 def event_detail(request, id):
     event = get_object_or_404(Event, pk=id)
     tickets_vendidos = Ticket.objects.filter(event=event).aggregate(total=Sum('quantity'))['total'] or 0
-    
+
     # Porcentaje de ocupación
     if event.capacity is None or event.capacity == 0:
         porcentaje_ocupado = 0
@@ -87,7 +88,7 @@ def event_detail(request, id):
     promedio_rating = Rating.objects.filter(event=event).aggregate(Avg('rating'))['rating__avg'] or 0
     porcentaje_rating = round(promedio_rating * 20, 2)  # Escala de 0 a 100
 
-    return render(request, "app/event_detail.html", {"event": event, "todos_los_comentarios": todos_los_comentarios, "ratings": ratings, "user_is_organizer": request.user.is_organizer, "porcentaje_ocupado": porcentaje_ocupado, "tickets_vendidos": tickets_vendidos, "tiene_ticket": tiene_ticket, "promedio_rating": promedio_rating, "porcentaje_rating": porcentaje_rating,}) 
+    return render(request, "app/event_detail.html", {"event": event, "todos_los_comentarios": todos_los_comentarios, "ratings": ratings, "user_is_organizer": request.user.is_organizer, "porcentaje_ocupado": porcentaje_ocupado, "tickets_vendidos": tickets_vendidos, "tiene_ticket": tiene_ticket, "promedio_rating": promedio_rating, "porcentaje_rating": porcentaje_rating,})
 
 
 
@@ -188,6 +189,12 @@ def events(request):
         events = events.order_by("-scheduled_at")
     else:
         events = events.order_by("scheduled_at")
+
+    favorite_event_ids = set(
+        Favorite.objects.filter(user=user).values_list("event_id", flat=True)
+    )
+    for event in events:
+        event.is_favorite = event.id in favorite_event_ids
 
     categories = Category.objects.filter(is_active=True)
     venues = Venue.objects.all()
@@ -502,7 +509,7 @@ def comprar_ticket(request, event_id):
 
     user = request.user
     tickets_previos = Ticket.objects.filter(user=user, event=event).aggregate(total=Sum('quantity'))['total'] or 0
-    tickets_disponibles = max(0, 4 - tickets_previos)  
+    tickets_disponibles = max(0, 4 - tickets_previos)
 
     if request.method == 'POST':
         # Obtener datos del formulario
@@ -519,7 +526,7 @@ def comprar_ticket(request, event_id):
                 'event': event,
                 'event_id': event_id
             })
-        
+
         if tickets_previos + quantity > 4:
             disponibles = max(0, 4 - tickets_previos)
             messages.error(
@@ -530,7 +537,7 @@ def comprar_ticket(request, event_id):
                 'event': event,
                 'event_id': event_id
             })
-        
+
         # verificar si hay cupo, si no hay cupo se muestra un error que diga no quedan entradas
         if event.capacity is not None:
             tickets_vendidos = Ticket.objects.filter(event=event).aggregate(total=Sum('quantity'))['total'] or 0
@@ -591,7 +598,7 @@ def comprar_ticket(request, event_id):
     return render(request, 'app/ticket_compra.html', {
         'event': event,
         'event_id': event_id,
-        'tickets_disponibles': tickets_disponibles  
+        'tickets_disponibles': tickets_disponibles
     })
 
 def simular_procesamiento_pago(payment_data):
@@ -1043,7 +1050,7 @@ def user_notifications(request):
     ).select_related('notification').order_by("-notification__created_at")
     # Contar notificaciones no leídas
     unread_count = notification_users.filter(read=False).count()
-    
+
     return render(
         request,
         "app/user_notifications.html",
@@ -1071,3 +1078,18 @@ def mark_all_notifications_read(request):
     if request.method == "POST":
         NotificationUser.objects.filter(user=request.user, read=False).update(read=True, read_at=timezone.now())
     return redirect("user_notifications")
+
+
+@login_required
+def toggle_favorite(request, event_id):
+    event = get_object_or_404(Event, id=event_id)
+    user = request.user
+    favorite, created = Favorite.objects.get_or_create(user=user, event=event)
+
+    if not created:
+        favorite.delete()
+        messages.success(request, "Evento eliminado de favoritos")
+    else:
+        messages.success(request, "Evento agregado a favoritos")
+
+    return redirect('events')

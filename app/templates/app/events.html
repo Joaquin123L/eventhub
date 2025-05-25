@@ -68,6 +68,15 @@
                             <a href="{% url 'event_detail' event.id %}" class="btn btn-sm btn-outline-primary">
                                 <i class="bi bi-eye"></i>
                             </a>
+                            <a href="{% url 'toggle_favorite' event.id %}"
+                               class="btn btn-sm favorite-btn {% if event.is_favorite %}btn-danger{% else %}btn-outline-danger{% endif %}"
+                               data-event-id="{{ event.id }}">
+                                {% if event.is_favorite %}
+                                    <i class="bi bi-heart-fill"></i>
+                                {% else %}
+                                    <i class="bi bi-heart"></i>
+                                {% endif %}
+                            </a>
                             {% if user_is_organizer %}
                                 <a href="{% url 'event_edit' event.id %}" class="btn btn-sm btn-outline-secondary">
                                     <i class="bi bi-pencil"></i>
