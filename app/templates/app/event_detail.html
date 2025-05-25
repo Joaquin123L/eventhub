@@ -91,6 +91,19 @@
    <div class="card my-4">
        <div class="card-body">
            <h3 class="card-title">Calificaciones y Reseñas ({{ event.ratings.count }})</h3>
+           {% if user_is_organizer %}
+  <div class="rating text-warning mt-2">
+    {% for i in "12345" %}
+  {% if promedio_rating|floatformat:1 >= i|add:"0"|floatformat:1 %}
+    <label style="font-size: 1.5rem;">★</label>
+  {% else %}
+    <label style="font-size: 1.5rem; color: #ccc;">★</label>
+  {% endif %}
+{% endfor %}
+
+    <span class="ms-2">({{ porcentaje_rating }}%)</span>
+  </div>
+{% endif %}
            <hr>
 
 
@@ -137,15 +150,17 @@
                    <small class="text-muted">{{ rating.created_at|date:"d/m/Y H:i" }}</small>
                </div>
                {% empty %}
-               <div class="text-center text-muted py-3">
-                   No hay reseñas todavía. ¡Sé el primero en calificar!
-               </div>
+                    {% if not user.is_organizer %}
+                        <div class="text-center text-muted py-3">
+                            No hay reseñas todavía.
+                        </div>
+                    {% endif %}
                {% endfor %}
            </div>
        </div>
 
 
-       {% if not user.is_organizer %}
+       {% if not user.is_organizer and tiene_ticket %}
        <div class="card-body">
            <h5 class="card-title">Agregar una Reseña</h5>
            <form action="{% url 'rating_create' event.id %}" method="post" id="ratingForm">
@@ -179,10 +194,14 @@
                <button type="submit" class="btn btn-primary">Publicar</button>
            </form>
        </div>
-       {% else %}
+       {% elif user.is_organizer %}
        <div class="text-center my-4">
            <p>No puedes dejar una reseña si eres el organizador del evento.</p>
        </div>
+       {% else %}
+         <div class="text-danger fw-bold mb-0 text-center my-4">
+              <p> Debes comprar una entrada para dejar una reseña.</p>
+        </div>
        {% endif %}
    </div>
 

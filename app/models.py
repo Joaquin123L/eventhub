@@ -1,6 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from datetime import datetime
+from django.db.models import Sum
 from django.utils import timezone
 
 
@@ -30,6 +31,14 @@ class User(AbstractUser):
 
 
 class Event(models.Model):
+    STATUS_CHOICES = [
+        ("Activo", "Activo"),
+        ("Cancelado", "Cancelado"),
+        ("Reprogramado", "Reprogramado"),
+        ("Agotado", "Agotado"),
+        ("Finalizado", "Finalizado"),
+    ]
+
     title = models.CharField(max_length=200)
     description = models.TextField()
     scheduled_at = models.DateTimeField()
@@ -39,9 +48,33 @@ class Event(models.Model):
     category = models.ForeignKey('Category', on_delete=models.PROTECT, related_name="events", null=True, blank=True)
     venue = models.ForeignKey('Venue', on_delete=models.CASCADE, related_name='events', null=True, blank=True)
     capacity = models.IntegerField(default=0, blank=True, null=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="Activo")
+
+    def check_and_update_agotado(self):
+        total = self.tickets.aggregate(total=Sum('quantity'))['total'] or 0 # type: ignore
+        total = int(total) if total is not None else 0
+        capacity = int(self.capacity) if self.capacity is not None else 0
+
+        if total >= capacity:
+            if self.status != "Agotado":
+                self.status = "Agotado"
+                self.save()
+            else:
+                if self.status == "Agotado":
+                    self.status = "Activo"
+                    self.save()
 
     def __str__(self):
         return self.title
+
+    def check_and_update_status(self):
+        if self.status != "Cancelado":
+            if self.scheduled_at < timezone.now():
+                self.status = "Finalizado"
+                self.save()
+            elif self.capacity is not None and self.capacity <= 0:
+                self.status = "Agotado"
+                self.save()
 
     @classmethod
     def validate(cls, title, description, scheduled_at, capacity=None):
@@ -62,25 +95,28 @@ class Event(models.Model):
         return errors
 
     @classmethod
-    def new(cls, title, description, scheduled_at, organizer,category=None,venue=None, capacity=None):
-        errors = Event.validate(title, description, scheduled_at, capacity)
+    def new(cls, title, description, scheduled_at, organizer, category=None, venue=None, capacity=None):
+        errors = cls.validate(title, description, scheduled_at, capacity)
 
-        if len(errors.keys()) > 0:
+        if errors:
             return False, errors
 
-        Event.objects.create(
+        event = cls.objects.create(
             title=title,
             description=description,
             scheduled_at=scheduled_at,
             organizer=organizer,
             category=category,
             venue=venue,
-            capacity=capacity
+            capacity=capacity,
+            status="Activo"
         )
 
+        event.check_and_update_status()
         return True, None
 
     def update(self, title, description, scheduled_at, organizer, category=None, venue=None, capacity=None):
+        fecha_cambiada = scheduled_at and scheduled_at != self.scheduled_at
 
         # Usar los valores actuales si no se pasan nuevos
         new_title = title or self.title
@@ -100,7 +136,11 @@ class Event(models.Model):
         self.venue = venue if venue is not None else self.venue
         self.capacity = capacity if capacity is not None else self.capacity
 
+        if fecha_cambiada and self.status != "Cancelado":
+            self.status = "Reprogramado"
+
         self.save()
+        self.check_and_update_status()
 
         return True, None
 

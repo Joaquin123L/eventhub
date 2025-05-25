@@ -16,7 +16,9 @@
                 
                 <div class="mb-3">
                     <label for="quantity" class="form-label">Cantidad de Entradas</label>
-                    <input type="number" id="quantity" name="quantity" class="form-control" value="1" min="1" required>
+                    <input type="number" id="quantity" name="quantity" class="form-control" value="1" min="1" max="{{ tickets_disponibles }}" required>
+<small class="text-muted">Puedes comprar hasta {{ tickets_disponibles }} entradas para este evento.</small>
+
                 </div>
                 
                 <div class="mb-3">
@@ -60,6 +62,13 @@
                         Acepto los <a href="#" class="text-primary">términos y condiciones</a> y la <a href="#" class="text-primary">política de privacidad</a>
                     </label>
                 </div>
+
+                <!-- condicion que si hay error se muestre   -->
+                {% if error %}
+                    <div class="alert alert-danger" role="alert">
+                        {{ error }}
+                    </div>
+                {% endif %}
                 
                 <button type="submit" class="btn btn-primary w-100" id="submit-btn">Confirmar compra</button>
             </form>
@@ -179,6 +188,13 @@
         paymentForm.addEventListener('submit', function(e) {
             e.preventDefault();
             
+            const cantidad = parseInt(quantityInput.value);
+            const maxPermitido = parseInt('{{ tickets_disponibles }}');
+
+    if (cantidad < 1 || cantidad > maxPermitido) {
+        alert(`Solo puedes comprar entre 1 y ${maxPermitido} entradas.`);
+        return; 
+    }
             // Deshabilitar botón y mostrar indicador de carga
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Procesando...';
@@ -217,6 +233,8 @@
         
         // Inicializar el resumen al cargar la página
         actualizarResumen();
+
     });
 </script>
+
 {% endblock %}

@@ -12,6 +12,7 @@ import random
 from django.db import IntegrityError
 from django.utils.timezone import now
 from django.db.models import Sum
+from django.db.models import Avg
 
 
 
@@ -70,25 +71,11 @@ def home(request):
 
 
 
-#@login_required
-#def events(request):
-    #si el usuario es organizador recupera todos sus eventos, si el usuario no es organizador recupera todos los eventos siempre y cuando la fecha del evento sea posterior a la actual. De esta forma permitimos que el usuario que no es  organizador pueda comprar entradas.
-#    if request.user.is_organizer:
-#        events = Event.objects.filter(organizer=request.user).order_by("scheduled_at")
-#    else:
-#        events = Event.objects.filter(scheduled_at__gte=timezone.now()).order_by("scheduled_at")
-#    return render(
-#        request,
- #       "app/events.html",
-  #      {"events": events, "user_is_organizer": request.user.is_organizer},
-  #  )
-
-
 @login_required
 def event_detail(request, id):
     event = get_object_or_404(Event, pk=id)
     tickets_vendidos = Ticket.objects.filter(event=event).aggregate(total=Sum('quantity'))['total'] or 0
-    
+
     # Porcentaje de ocupación
     if event.capacity is None or event.capacity == 0:
         porcentaje_ocupado = 0
@@ -96,8 +83,11 @@ def event_detail(request, id):
         porcentaje_ocupado = (tickets_vendidos / event.capacity) * 100
     todos_los_comentarios = Comment.objects.filter(event=event).order_by('-created_at')
     ratings = Rating.objects.filter(event=event).order_by('-created_at')
+    tiene_ticket = Ticket.objects.filter(user=request.user, event=event).exists()
+    promedio_rating = Rating.objects.filter(event=event).aggregate(Avg('rating'))['rating__avg'] or 0
+    porcentaje_rating = round(promedio_rating * 20, 2)  # Escala de 0 a 100
 
-    return render(request, "app/event_detail.html", {"event": event, "todos_los_comentarios": todos_los_comentarios, "ratings": ratings, "user_is_organizer": request.user.is_organizer, "porcentaje_ocupado": porcentaje_ocupado, "tickets_vendidos": tickets_vendidos})
+    return render(request, "app/event_detail.html", {"event": event, "todos_los_comentarios": todos_los_comentarios, "ratings": ratings, "user_is_organizer": request.user.is_organizer, "porcentaje_ocupado": porcentaje_ocupado, "tickets_vendidos": tickets_vendidos, "tiene_ticket": tiene_ticket, "promedio_rating": promedio_rating, "porcentaje_rating": porcentaje_rating,}) 
 
 
 
@@ -224,7 +214,7 @@ def events(request):
     if user.is_organizer:
         events = Event.objects.filter(organizer=user)
     else:
-        events = Event.objects.filter(scheduled_at__gte=timezone.now())
+        events = Event.objects.filter(scheduled_at__gte=timezone.now()).exclude(status__in=["Cancelado", "Finalizado"])
 
     if category_id:
         events = events.filter(category_id=category_id)
@@ -548,6 +538,10 @@ def tickets(request, event_id):
 def comprar_ticket(request, event_id):
     event = get_object_or_404(Event, pk=event_id)
 
+    user = request.user
+    tickets_previos = Ticket.objects.filter(user=user, event=event).aggregate(total=Sum('quantity'))['total'] or 0
+    tickets_disponibles = max(0, 4 - tickets_previos)  
+
     if request.method == 'POST':
         # Obtener datos del formulario
         ticket_code = request.POST.get('ticket_code')
@@ -557,7 +551,40 @@ def comprar_ticket(request, event_id):
             quantity = int(quantity)
         except ValueError:
             quantity = 0
+        if quantity <= 0:
+            messages.error(request, "La cantidad de entradas debe ser mayor a 0.")
+            return render(request, 'app/ticket_compra.html', {
+                'event': event,
+                'event_id': event_id
+            })
+        
+        if tickets_previos + quantity > 4:
+            disponibles = max(0, 4 - tickets_previos)
+            messages.error(
+                request,
+                f"No puedes comprar más de 4 entradas por evento. Ya compraste {tickets_previos} y solo puedes adquirir {disponibles} más."
+            )
+            return render(request, 'app/ticket_compra.html', {
+                'event': event,
+                'event_id': event_id
+            })
+        
+        # verificar si hay cupo, si no hay cupo se muestra un error que diga no quedan entradas
+        if event.capacity is not None:
+            tickets_vendidos = Ticket.objects.filter(event=event).aggregate(total=Sum('quantity'))['total'] or 0
+            if tickets_vendidos + quantity > event.capacity:
+                # mostrar cantidad de entradas disponibles
+                tickets_disponibles = event.capacity - tickets_vendidos
+                if tickets_disponibles == 0:
+                    error = "No quedan entradas disponibles."
+                else:
+                    error = f"No quedan entradas disponibles. Solo quedan {tickets_disponibles} entradas."
 
+                return render(request, 'app/ticket_compra.html', {
+                    'event': event,
+                    'event_id': event_id,
+                    'error': error
+                })
         # Datos de pago (estos se enviarían a una API externa en un caso real)
         payment_data = {
             'card_number': request.POST.get('card_number'),
@@ -596,12 +623,14 @@ def comprar_ticket(request, event_id):
             user=user,
             event=event
         )
+        event.check_and_update_agotado()
 
         messages.success(request, f"¡Compra exitosa! Tu código de ticket es: {ticket_code}")
         return redirect('events')
     return render(request, 'app/ticket_compra.html', {
         'event': event,
-        'event_id': event_id
+        'event_id': event_id,
+        'tickets_disponibles': tickets_disponibles  
     })
 
 def simular_procesamiento_pago(payment_data):
@@ -629,11 +658,12 @@ def simular_procesamiento_pago(payment_data):
     return random.random() < 0.95
 
 @login_required
-def ticket_delete(request,event_id, ticket_id):
+def ticket_delete(request, event_id, ticket_id):
     ticket = get_object_or_404(Ticket, pk=ticket_id)
-    event_id=event_id
+    event = ticket.event
 
     if request.method == 'POST':
+        event.check_and_update_agotado()
         ticket.delete()
         messages.success(request, "Ticket eliminado correctamente")
         return redirect('tickets', event_id=event_id)
@@ -669,7 +699,32 @@ def update_ticket(request, ticket_id):
     if request.method == 'POST':
         quantity = request.POST.get('quantity')
         type = request.POST.get('type')
+
         if quantity and type:
+            try:
+                quantity = int(quantity)
+            except (TypeError, ValueError):
+                messages.error(request, "Cantidad inválida.")
+                return redirect('Mis_tickets')
+
+            if quantity <= 0:
+                messages.error(request, "La cantidad debe ser mayor que 0.")
+                return redirect('Mis_tickets')
+
+            # Verificar cuántos tickets tiene el usuario para este evento, excluyendo el actual
+            tickets_previos = Ticket.objects.filter(
+                user=ticket.user,
+                event=ticket.event
+            ).exclude(pk=ticket.pk).aggregate(total=Sum('quantity'))['total'] or 0
+
+            if tickets_previos + quantity > 4:
+                disponibles = max(0, 4 - tickets_previos)
+                messages.error(
+                    request,
+                    f"No puedes tener más de 4 entradas por evento. Solo puedes actualizar a un máximo de {disponibles}."
+                )
+                return redirect('Mis_tickets')
+
             ticket.quantity = quantity
             ticket.type = type
             ticket.save()
@@ -677,7 +732,17 @@ def update_ticket(request, ticket_id):
 
     return render(request, 'app/Mis_tickets.html', {'ticket': ticket})
 
+@login_required
+def event_cancel(request, pk):
+    event = get_object_or_404(Event, pk=pk)
 
+    # Verificamos que el usuario sea el organizador
+    if request.user != event.organizer:
+        return redirect('event_list')
+
+    event.status = 'Cancelado'
+    event.save()
+    return redirect('events')
 
 def rating_create(request, event_id):
     event = get_object_or_404(Event, id=event_id)
@@ -1028,7 +1093,7 @@ def user_notifications(request):
     ).select_related('notification').order_by("-notification__created_at")
     # Contar notificaciones no leídas
     unread_count = notification_users.filter(read=False).count()
-    
+
     return render(
         request,
         "app/user_notifications.html",
