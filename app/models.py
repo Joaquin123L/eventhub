@@ -2,6 +2,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from datetime import datetime
 from django.utils import timezone
+from django.db.models import Sum
 
 
 class User(AbstractUser):
@@ -48,6 +49,20 @@ class Event(models.Model):
     venue = models.ForeignKey('Venue', on_delete=models.CASCADE, related_name='events', null=True, blank=True)
     capacity = models.IntegerField(default=0, blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="Activo")
+
+    def check_and_update_agotado(self):
+        total = self.tickets.aggregate(total=Sum('quantity'))['total'] or 0 # type: ignore
+        total = int(total) if total is not None else 0
+        capacity = int(self.capacity) if self.capacity is not None else 0
+
+        if total >= capacity:
+            if self.status != "Agotado":
+                self.status = "Agotado"
+                self.save()
+            else:
+                if self.status == "Agotado":
+                    self.status = "Activo"
+                    self.save()
 
     def __str__(self):
         return self.title

@@ -558,6 +558,7 @@ def comprar_ticket(request, event_id):
             user=user,
             event=event
         )
+        event.check_and_update_agotado()
 
         messages.success(request, f"¡Compra exitosa! Tu código de ticket es: {ticket_code}")
         return redirect('events')
@@ -591,11 +592,12 @@ def simular_procesamiento_pago(payment_data):
     return random.random() < 0.95
 
 @login_required
-def ticket_delete(request,event_id, ticket_id):
+def ticket_delete(request, event_id, ticket_id):
     ticket = get_object_or_404(Ticket, pk=ticket_id)
-    event_id=event_id
+    event = ticket.event
 
     if request.method == 'POST':
+        event.check_and_update_agotado()
         ticket.delete()
         messages.success(request, "Ticket eliminado correctamente")
         return redirect('tickets', event_id=event_id)
