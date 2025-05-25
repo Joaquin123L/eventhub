@@ -162,11 +162,12 @@ def event_form(request, id=None):
             event = get_object_or_404(Event, pk=id)
             # Guardamos los valores anteriores
             old_scheduled_at = event.scheduled_at
-            old_venue = event.venue
-            # Validamos antes de actualizar
+            old_venue_id = event.venue.id if event.venue else None            # Validamos antes de actualizar
+
             success, errors = event.update(title, description, scheduled_at, request.user, category, venue, capacity)
             if success:
-                hubo_cambio_fecha_lugar = old_scheduled_at != scheduled_at or old_venue != venue
+                new_venue_id = getattr(venue, 'id', None)
+                hubo_cambio_fecha_lugar = old_scheduled_at != scheduled_at or old_venue_id != new_venue_id
                 if hubo_cambio_fecha_lugar:
                     usuarios = User.objects.filter(tickets__event=event).distinct()
                     titulo = "Cambio en evento"
