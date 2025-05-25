@@ -2,9 +2,10 @@ import datetime
 from django.contrib.auth import authenticate, login, get_user_model
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
-from django.db.models import Count
-from django.http import HttpResponseForbidden
+from django.db.models import Count, Exists, OuterRef
+from django.http import HttpResponseForbidden, HttpResponseRedirect
 from .models import Event, User, Category, Comment, Venue, Ticket, Rating, RefoundRequest, RefoundReason, RefoundStatus, \
     Notification, NotificationUser, Favorite
 from django.contrib import messages
@@ -173,6 +174,7 @@ def events(request):
     order = request.GET.get("order", "asc")
     category_id = request.GET.get("category")
     venue_id = request.GET.get("venue")
+    favorites_only = request.GET.get("favorites_only") == "on"
 
     if user.is_organizer:
         events = Event.objects.filter(organizer=user)
@@ -184,6 +186,11 @@ def events(request):
 
     if venue_id:
         events = events.filter(venue_id=venue_id)
+
+    if favorites_only:
+        events = events.filter(favorites__user=user)
+    else:
+        events = events.annotate(is_favorite=Exists(Favorite.objects.filter(user=user, event=OuterRef('pk'))))
 
     if order == "desc":
         events = events.order_by("-scheduled_at")
@@ -210,6 +217,7 @@ def events(request):
             "selected_venue": venue_id,
             "order": order,
             "user_is_organizer": user.is_organizer,
+            "favorites_only": favorites_only,
         },
     )
 
@@ -1092,4 +1100,6 @@ def toggle_favorite(request, event_id):
     else:
         messages.success(request, "Evento agregado a favoritos")
 
-    return redirect('events')
+    referer = request.META.get('HTTP_REFERER', reverse('events'))
+
+    return HttpResponseRedirect(referer)
