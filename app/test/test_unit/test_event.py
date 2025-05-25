@@ -81,7 +81,7 @@ class EventModelTest(TestCase):
         )
 
         self.assertFalse(success)
-        self.assertIn("title", errors)
+        self.assertIn("title", errors) # type: ignore
 
         # Verificar que no se creó ningún evento nuevo
         self.assertEqual(Event.objects.count(), initial_count)
@@ -153,7 +153,7 @@ class EventModelTest(TestCase):
             capacity=-10  # 
         )
         self.assertFalse(is_valid)
-        self.assertIn("capacity", errors)
+        self.assertIn("capacity", errors) # type: ignore
 
         # El test pasa si al buscar el evento salta DoesNotExist:
         with self.assertRaises(Event.DoesNotExist):
