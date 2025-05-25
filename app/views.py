@@ -86,8 +86,9 @@ def event_detail(request, id):
     tiene_ticket = Ticket.objects.filter(user=request.user, event=event).exists()
     promedio_rating = Rating.objects.filter(event=event).aggregate(Avg('rating'))['rating__avg'] or 0
     porcentaje_rating = round(promedio_rating * 20, 2)  # Escala de 0 a 100
+    tiene_resena = Rating.objects.filter(user=request.user, event=event).exists() 
 
-    return render(request, "app/event_detail.html", {"event": event, "todos_los_comentarios": todos_los_comentarios, "ratings": ratings, "user_is_organizer": request.user.is_organizer, "porcentaje_ocupado": porcentaje_ocupado, "tickets_vendidos": tickets_vendidos, "tiene_ticket": tiene_ticket, "promedio_rating": promedio_rating, "porcentaje_rating": porcentaje_rating,}) 
+    return render(request, "app/event_detail.html", {"event": event, "todos_los_comentarios": todos_los_comentarios, "ratings": ratings, "user_is_organizer": request.user.is_organizer, "porcentaje_ocupado": porcentaje_ocupado, "tickets_vendidos": tickets_vendidos, "tiene_ticket": tiene_ticket, "promedio_rating": promedio_rating, "porcentaje_rating": porcentaje_rating, "tiene_resena": tiene_resena,}) 
 
 
 
@@ -867,7 +868,7 @@ def update_refound(request, refound_id):
 
     if request.method == 'GET':
         return render(request, 'app/refound_update.html', {'refound': refound,
-                                                          'refoundReason': RefoundReason})
+                                                            'refoundReason': RefoundReason})
     return redirect('refound_user')
 
 @login_required
@@ -877,7 +878,7 @@ def refound_admin(request):
 
     refounds = RefoundRequest.objects.all().order_by('-created_at')
     return render(request, 'app/refound_admin.html', {'refounds': refounds,
-                                                      'user_is_organizer': True})
+                                                    'user_is_organizer': True})
 
 @login_required
 def approve_or_reject_refound(request, refound_id):
