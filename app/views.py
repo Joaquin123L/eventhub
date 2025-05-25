@@ -75,7 +75,7 @@ def home(request):
 def event_detail(request, id):
     event = get_object_or_404(Event, pk=id)
     tickets_vendidos = Ticket.objects.filter(event=event).aggregate(total=Sum('quantity'))['total'] or 0
-    
+
     # Porcentaje de ocupación
     if event.capacity is None or event.capacity == 0:
         porcentaje_ocupado = 0
@@ -176,7 +176,7 @@ def events(request):
     if user.is_organizer:
         events = Event.objects.filter(organizer=user)
     else:
-        events = Event.objects.filter(scheduled_at__gte=timezone.now())
+        events = Event.objects.filter(scheduled_at__gte=timezone.now()).exclude(status__in=["Cancelado", "Finalizado"])
 
     if category_id:
         events = events.filter(category_id=category_id)
@@ -585,6 +585,7 @@ def comprar_ticket(request, event_id):
             user=user,
             event=event
         )
+        event.check_and_update_agotado()
 
         messages.success(request, f"¡Compra exitosa! Tu código de ticket es: {ticket_code}")
         return redirect('events')
@@ -619,11 +620,12 @@ def simular_procesamiento_pago(payment_data):
     return random.random() < 0.95
 
 @login_required
-def ticket_delete(request,event_id, ticket_id):
+def ticket_delete(request, event_id, ticket_id):
     ticket = get_object_or_404(Ticket, pk=ticket_id)
-    event_id=event_id
+    event = ticket.event
 
     if request.method == 'POST':
+        event.check_and_update_agotado()
         ticket.delete()
         messages.success(request, "Ticket eliminado correctamente")
         return redirect('tickets', event_id=event_id)
@@ -692,7 +694,17 @@ def update_ticket(request, ticket_id):
 
     return render(request, 'app/Mis_tickets.html', {'ticket': ticket})
 
+@login_required
+def event_cancel(request, pk):
+    event = get_object_or_404(Event, pk=pk)
 
+    # Verificamos que el usuario sea el organizador
+    if request.user != event.organizer:
+        return redirect('event_list')
+
+    event.status = 'Cancelado'
+    event.save()
+    return redirect('events')
 
 def rating_create(request, event_id):
     event = get_object_or_404(Event, id=event_id)
@@ -1043,7 +1055,7 @@ def user_notifications(request):
     ).select_related('notification').order_by("-notification__created_at")
     # Contar notificaciones no leídas
     unread_count = notification_users.filter(read=False).count()
-    
+
     return render(
         request,
         "app/user_notifications.html",
