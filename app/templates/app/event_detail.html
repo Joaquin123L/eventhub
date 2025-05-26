@@ -106,7 +106,6 @@
 {% endif %}
            <hr>
 
-
            <div class="rating-list">
                {% for rating in ratings %}
                <div class="border-bottom pb-3 mb-3" id="rating-{{ rating.id }}">
@@ -159,15 +158,20 @@
            </div>
        </div>
 
-
-       {% if not user.is_organizer and tiene_ticket %}
-       <div class="card-body">
-           <h5 class="card-title">Agregar una Reseña</h5>
-           <form action="{% url 'rating_create' event.id %}" method="post" id="ratingForm">
-               {% csrf_token %}
-
-
-               <div class="mb-3">
+{% if user.is_organizer %}
+    <div class="text-center my-4">
+        <p>No puedes dejar una reseña si eres el organizador del evento.</p>
+    </div>
+{% elif tiene_resena %}
+    <div class="text-danger fw-bold mb-0 text-center my-4">
+        <p>Ya has dejado una reseña para este evento.</p>
+    </div>
+{% elif tiene_ticket %}
+    <div class="card-body">
+        <h5 class="card-title">Agregar una Reseña</h5>
+        <form action="{% url 'rating_create' event.id %}" method="post" id="ratingForm">
+            {% csrf_token %}
+            <div class="mb-3">
                    <input type="hidden" id="rating" name="rating" required>
                    <div id="star-container" class="d-flex gap-2">
                        {% for i in "12345" %}
@@ -192,18 +196,15 @@
 
 
                <button type="submit" class="btn btn-primary">Publicar</button>
-           </form>
-       </div>
-       {% elif user.is_organizer %}
-       <div class="text-center my-4">
-           <p>No puedes dejar una reseña si eres el organizador del evento.</p>
-       </div>
-       {% else %}
-         <div class="text-danger fw-bold mb-0 text-center my-4">
-              <p> Debes comprar una entrada para dejar una reseña.</p>
-        </div>
-       {% endif %}
-   </div>
+
+        </form>
+    </div>
+{% else %}
+    <div class="text-danger fw-bold mb-0 text-center my-4">
+        <p>Debes comprar una entrada para dejar una reseña.</p>
+    </div>
+{% endif %}
+
 
 
    <div class="modal fade" id="editRatingModal" tabindex="-1" aria-labelledby="editRatingModalLabel"
