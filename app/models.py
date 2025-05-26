@@ -512,3 +512,14 @@ class Favorite(models.Model):
 
     class Meta:
         unique_together = ('user', 'event')
+
+class SatisfactionSurvey(models.Model):
+    ticket = models.OneToOneField(Ticket, on_delete=models.CASCADE)
+
+    satisfaction_level = models.IntegerField(choices=[(1, 'Muy insatisfecho'), (2, 'Insatisfecho'), (3, 'Neutral'), (4, 'Satisfecho'), (5, 'Muy satisfecho')])
+    ease_of_search = models.IntegerField(choices=[(1, 'Muy difícil'), (2, 'Difícil'), (3, 'Neutral'), (4, 'Fácil'), (5, 'Muy fácil')])
+    payment_experience = models.IntegerField(choices=[(1, 'Muy malo'), (2, 'Malo'), (3, 'Aceptable'), (4, 'Bueno'), (5, 'Excelente')])
+    received_ticket = models.BooleanField()
+    would_recommend = models.IntegerField(choices=[(1, 'Definitivamente no'), (2, 'Probablemente no'), (3, 'No estoy seguro/a'), (4, 'Probablemente sí'), (5, 'Definitivamente sí')])
+
+    additional_comments = models.TextField(blank=True)

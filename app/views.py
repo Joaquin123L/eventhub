@@ -5,9 +5,9 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.db.models import Count, Exists, OuterRef
-from django.http import HttpResponseForbidden, HttpResponseRedirect
+from django.http import HttpResponseForbidden, HttpResponseRedirect, HttpResponseBadRequest
 from .models import Event, User, Category, Comment, Venue, Ticket, Rating, RefoundRequest, RefoundReason, RefoundStatus, \
-    Notification, NotificationUser, Favorite
+    Notification, NotificationUser, Favorite, SatisfactionSurvey
 from django.contrib import messages
 import re
 import random
@@ -76,9 +76,9 @@ def home(request):
 @login_required
 def event_detail(request, id):
     event = get_object_or_404(Event, pk=id)
-    countdown = event.countdown 
+    countdown = event.countdown
     tickets_vendidos = Ticket.objects.filter(event=event).aggregate(total=Sum('quantity'))['total'] or 0
-    
+
     if countdown is not None:
         total_seconds = int(countdown.total_seconds())
         days = total_seconds // (24 * 3600)
@@ -87,7 +87,7 @@ def event_detail(request, id):
     else:
         days = hours = minutes = 0
 
-    
+
     # Porcentaje de ocupación
     if event.capacity is None or event.capacity == 0:
         porcentaje_ocupado = 0
@@ -98,7 +98,7 @@ def event_detail(request, id):
     tiene_ticket = Ticket.objects.filter(user=request.user, event=event).exists()
     promedio_rating = Rating.objects.filter(event=event).aggregate(Avg('rating'))['rating__avg'] or 0
     porcentaje_rating = round(promedio_rating * 20, 2)  # Escala de 0 a 100
-    tiene_resena = Rating.objects.filter(user=request.user, event=event).exists() 
+    tiene_resena = Rating.objects.filter(user=request.user, event=event).exists()
 
     return render(request, "app/event_detail.html", {"event": event, "todos_los_comentarios": todos_los_comentarios, "ratings": ratings, "user_is_organizer": request.user.is_organizer, "porcentaje_ocupado": porcentaje_ocupado, "tickets_vendidos": tickets_vendidos, "tiene_ticket": tiene_ticket, "promedio_rating": promedio_rating, "porcentaje_rating": porcentaje_rating, "tiene_resena": tiene_resena,"countdown": countdown,  "countdown_days": days,
         "countdown_hours": hours,"countdown_minutes": minutes,})
@@ -616,7 +616,7 @@ def comprar_ticket(request, event_id):
         event.check_and_update_agotado()
 
         messages.success(request, f"¡Compra exitosa! Tu código de ticket es: {ticket_code}")
-        return redirect('events')
+        return redirect('satisfaction_survey', ticket_id=ticket.id)
     return render(request, 'app/ticket_compra.html', {
         'event': event,
         'event_id': event_id,
@@ -1128,3 +1128,57 @@ def toggle_favorite(request, event_id):
     referer = request.META.get('HTTP_REFERER', reverse('events'))
 
     return HttpResponseRedirect(referer)
+
+@login_required
+def satisfaction_survey(request, ticket_id):
+    ticket = get_object_or_404(Ticket, pk=ticket_id)
+
+    if SatisfactionSurvey.objects.filter(ticket=ticket).exists():
+        return redirect('events')
+
+    if request.method == 'POST':
+        try:
+            sat_lvl   = int(request.POST['satisfaction_level'])
+            ease      = int(request.POST['ease_of_search'])
+            pay_exp   = int(request.POST['payment_experience'])
+            # Booleano: chequeamos si el checkbox está presente
+            received  = request.POST.get('received_ticket') in ('on', 'true', '1')
+            recommend = int(request.POST['would_recommend'])
+            comments  = request.POST.get('additional_comments', '').strip()
+        except (KeyError, ValueError):
+            return render(request, 'app/satisfaction_survey.html', {
+                'ticket': ticket,
+                'satisfaction_level_choices': SatisfactionSurvey._meta
+                          .get_field('satisfaction_level').choices,
+                'ease_of_search_choices': SatisfactionSurvey._meta
+                          .get_field('ease_of_search').choices,
+                'payment_experience_choices': SatisfactionSurvey._meta
+                          .get_field('payment_experience').choices,
+                'would_recommend_choices': SatisfactionSurvey._meta
+                          .get_field('would_recommend').choices,
+                'error_message': "Por favor, complete todos los campos correctamente."
+            })
+
+        SatisfactionSurvey.objects.create(
+            ticket             = ticket,
+            satisfaction_level = sat_lvl,
+            ease_of_search     = ease,
+            payment_experience = pay_exp,
+            received_ticket    = received,
+            would_recommend    = recommend,
+            additional_comments= comments,
+        )
+
+        return redirect('events')
+
+    return render(request, 'app/satisfaction_survey.html', context={
+        'ticket': ticket,
+        'satisfaction_level_choices': SatisfactionSurvey._meta
+        .get_field('satisfaction_level').choices,
+        'ease_of_search_choices': SatisfactionSurvey._meta
+        .get_field('ease_of_search').choices,
+        'payment_experience_choices': SatisfactionSurvey._meta
+        .get_field('payment_experience').choices,
+        'would_recommend_choices': SatisfactionSurvey._meta
+        .get_field('would_recommend').choices,
+    })
