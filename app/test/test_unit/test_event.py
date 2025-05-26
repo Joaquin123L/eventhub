@@ -3,7 +3,7 @@ import datetime
 from django.test import TestCase
 from django.utils import timezone
 from datetime import timedelta
-
+from django.urls import reverse
 from app.models import Event, User, Ticket
 
 
@@ -219,3 +219,35 @@ class EventModelTest(TestCase):
 
         event.check_and_update_agotado()
         self.assertEqual(event.status, "Agotado")
+
+    def test_evento_vuelve_a_activo_si_se_elimina_ticket_y_hay_capacidad(self):
+        event = Event.objects.create(
+            title="Evento dinámico",
+            capacity=5,
+            scheduled_at=self.future_date,
+            status="Activo",
+            organizer=self.organizer
+        )
+
+        ticket1 = Ticket.objects.create(
+            event=event,
+            quantity=3,
+            ticket_code="B1",
+            user=self.organizer
+        )
+        ticket2 = Ticket.objects.create(
+            event=event,
+            quantity=2,
+            ticket_code="B2",
+            user=self.organizer
+        )
+
+        event.check_and_update_agotado()
+        self.assertEqual(event.status, "Agotado")
+
+        response = self.client.post(reverse('ticket_delete', args=[event.pk, ticket2.pk]))
+
+
+        event.check_and_update_agotado()
+
+        self.assertEqual(event.status, "Activo")
