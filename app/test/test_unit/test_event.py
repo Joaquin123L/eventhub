@@ -177,3 +177,21 @@ class EventModelTest(TestCase):
         event.check_and_update_status()
         self.assertEqual(event.status, "Finalizado")
 
+    def test_evento_cancelado_no_cambia_estado(self):
+        event = Event.objects.create(
+            title="Evento Cancelable",
+            capacity=10,
+            scheduled_at=self.future_date,
+            status="Activo",
+            organizer=self.organizer
+        )
+
+
+        event.status = "Cancelado"
+        event.save()
+
+
+        event.check_and_update_status()
+
+        
+        self.assertEqual(event.status, "Cancelado")
