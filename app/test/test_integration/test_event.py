@@ -131,7 +131,50 @@ class EventDetailViewTest(BaseEventTestCase):
 
         # Verificar respuesta
         self.assertEqual(response.status_code, 404)
+    
+    def test_event_detail_with_capacity_and_tickets(self):
+    #Test que verifica porcentaje de ocupación con capacidad definida y tickets vendidos
+        event = Event.objects.create(
+            title="Evento con capacidad",
+            description="Evento de prueba",
+            scheduled_at=timezone.now() + datetime.timedelta(days=1),
+            organizer=self.organizer,
+            capacity=100,
+    )
 
+        # Crear tickets por 40 entradas
+        Ticket.objects.create(event=event, user=self.organizer, quantity=40)
+
+        response = self.client.login(username="organizador", password="password123")  # Autenticar
+        response = self.client.get(reverse("event_detail", args=[event.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("porcentaje_ocupado", response.context)
+        self.assertEqual(response.context["porcentaje_ocupado"], 40.0)
+        self.assertEqual(response.context["tickets_vendidos"], 40)
+
+def test_event_detail_verificate_countdown(self):
+    """Test que verifica el comportamiento del contador regresivo para eventos futuros"""
+    # Crear un evento futuro
+    future_event = Event.objects.create(
+        title="Evento Futuro",
+        description="Descripción del evento futuro",
+        scheduled_at=timezone.now() + datetime.timedelta(days=1),
+        organizer=self.organizer,
+    )
+
+    # Hacer petición a la vista event_detail
+    response = self.client.get(reverse("event_detail", args=[future_event.pk]))
+
+    # Verificar que el contador regresivo está presente en el contexto
+    self.assertIn("countdown", response.context)
+    countdown = response.context["countdown"]
+
+    # Verificar que el contador regresivo no es None y es mayor a 0 segundos
+    self.assertIsNotNone(countdown)
+    self.assertGreater(countdown.total_seconds(), 0)
+
+    # Verificar que el evento es futuro
+    self.assertTrue(future_event.scheduled_at > timezone.now())
 
 class EventFormViewTest(BaseEventTestCase):
     """Tests para la vista del formulario de eventos"""
@@ -183,6 +226,8 @@ class EventFormViewTest(BaseEventTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "app/event_form.html")
         self.assertEqual(response.context["event"].id, self.event1.pk)
+    
+
 
 
 class EventFormSubmissionTest(BaseEventTestCase):
@@ -346,22 +391,4 @@ class EventDeleteViewTest(BaseEventTestCase):
         # Verificar que el evento sigue existiendo
         self.assertTrue(Event.objects.filter(pk=self.event1.pk).exists())
 
-    def test_event_detail_with_capacity_and_tickets(self):
-    #Test que verifica porcentaje de ocupación con capacidad definida y tickets vendidos
-        event = Event.objects.create(
-            title="Evento con capacidad",
-            description="Evento de prueba",
-            scheduled_at=timezone.now() + datetime.timedelta(days=1),
-            organizer=self.organizer,
-            capacity=100,
-    )
 
-        # Crear tickets por 40 entradas
-        Ticket.objects.create(event=event, user=self.organizer, quantity=40)
-
-        response = self.client.login(username="organizador", password="password123")  # Autenticar
-        response = self.client.get(reverse("event_detail", args=[event.pk]))
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("porcentaje_ocupado", response.context)
-        self.assertEqual(response.context["porcentaje_ocupado"], 40.0)
-        self.assertEqual(response.context["tickets_vendidos"], 40)
