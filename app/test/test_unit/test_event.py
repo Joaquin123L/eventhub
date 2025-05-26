@@ -2,6 +2,7 @@ import datetime
 
 from django.test import TestCase
 from django.utils import timezone
+from datetime import timedelta
 
 from app.models import Event, User
 
@@ -14,6 +15,8 @@ class EventModelTest(TestCase):
             password="password123",
             is_organizer=True,
         )
+        self.future_date = timezone.now() + timedelta(days=5)
+        self.past_date = timezone.now() - timedelta(days=5)
 
     def test_event_creation(self):
         event = Event.objects.create(
@@ -141,7 +144,7 @@ class EventModelTest(TestCase):
         self.assertEqual(updated_event.description, new_description)
         self.assertEqual(updated_event.scheduled_at, original_scheduled_at)
 
-    
+
     def test_event_creation_fails_with_negative_capacity(self):
         scheduled_at = timezone.now() + datetime.timedelta(days=1)
 
@@ -150,7 +153,7 @@ class EventModelTest(TestCase):
             description="Capacidad negativa",
             scheduled_at=scheduled_at,
             organizer=self.organizer,
-            capacity=-10  # 
+            capacity=-10  #
         )
         self.assertFalse(is_valid)
         self.assertIn("capacity", errors) # type: ignore
@@ -159,5 +162,7 @@ class EventModelTest(TestCase):
         with self.assertRaises(Event.DoesNotExist):
             Event.objects.get(title="Evento inválido")
 
-    
+    def test_event_activo_default(self):
+        event = Event.objects.create(title="Test Event", capacity=10, scheduled_at=self.future_date, status="Activo", organizer=self.organizer)
+        self.assertEqual(event.status, "Activo")
 
