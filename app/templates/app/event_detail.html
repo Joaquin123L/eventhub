@@ -678,18 +678,29 @@
    }
 </script>
 <script>
-  const eventDate = new Date("{{ event.scheduled_at|date:'c' }}"); // formato ISO
+    // Tomar la fecha UTC del evento y convertirla a la misma zona horaria que now
+    const eventDateUTC = new Date("{{ event.scheduled_at|date:'c' }}");
+    const eventDateLocal = new Date(
+    eventDateUTC.getUTCFullYear(),
+    eventDateUTC.getUTCMonth(),
+    eventDateUTC.getUTCDate(),
+    eventDateUTC.getUTCHours(),
+    eventDateUTC.getUTCMinutes(),
+    eventDateUTC.getUTCSeconds()
+);
 
-  function updateCountdown() {
-    const now = new Date();
-    const distance = eventDate - now;
+
+function updateCountdown() {
+    const now = new Date();  // local time
+    const distance = eventDateLocal.getTime() - new Date().getTime();
+
 
     if (distance <= 0) {
-      document.getElementById("days").innerText = "00";
-      document.getElementById("hours").innerText = "00";
-      document.getElementById("minutes").innerText = "00";
-      document.getElementById("seconds").innerText = "00";
-      return;
+        document.getElementById("days").innerText = "00";
+        document.getElementById("hours").innerText = "00";
+        document.getElementById("minutes").innerText = "00";
+        document.getElementById("seconds").innerText = "00";
+        return;
     }
 
     const days = Math.floor(distance / (1000 * 60 * 60 * 24));
@@ -701,10 +712,11 @@
     document.getElementById("hours").innerText = String(hours).padStart(2, '0');
     document.getElementById("minutes").innerText = String(minutes).padStart(2, '0');
     document.getElementById("seconds").innerText = String(seconds).padStart(2, '0');
-  }
+}
 
-  updateCountdown();
-  setInterval(updateCountdown, 1000);
+updateCountdown();
+setInterval(updateCountdown, 1000);
+
 </script>
 
 

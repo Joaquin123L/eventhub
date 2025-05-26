@@ -78,12 +78,13 @@ def event_detail(request, id):
     tickets_vendidos = Ticket.objects.filter(event=event).aggregate(total=Sum('quantity'))['total'] or 0
     
     if countdown is not None:
-        days = countdown.days
-        total_seconds = countdown.seconds
-        hours = total_seconds // 3600
+        total_seconds = int(countdown.total_seconds())
+        days = total_seconds // (24 * 3600)
+        hours = (total_seconds % (24 * 3600)) // 3600
         minutes = (total_seconds % 3600) // 60
     else:
         days = hours = minutes = 0
+
     
     # Porcentaje de ocupación
     if event.capacity is None or event.capacity == 0:
