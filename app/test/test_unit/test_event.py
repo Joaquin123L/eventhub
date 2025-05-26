@@ -166,3 +166,14 @@ class EventModelTest(TestCase):
         event = Event.objects.create(title="Test Event", capacity=10, scheduled_at=self.future_date, status="Activo", organizer=self.organizer)
         self.assertEqual(event.status, "Activo")
 
+    def test_evento_finalizado_si_fecha_pasada(self):
+        event = Event.objects.create(
+            title="Evento Pasado",
+            capacity=10,
+            scheduled_at=self.past_date,
+            status="Activo",
+            organizer=self.organizer
+        )
+        event.check_and_update_status()
+        self.assertEqual(event.status, "Finalizado")
+
