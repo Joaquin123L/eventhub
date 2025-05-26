@@ -2,10 +2,12 @@ import datetime
 from django.contrib.auth import authenticate, login, get_user_model
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
-from django.db.models import Count
-from django.http import HttpResponseForbidden
-from .models import Event, User, Category, Comment, Venue, Ticket, Rating, RefoundRequest, RefoundReason, RefoundStatus,Notification, NotificationUser
+from django.db.models import Count, Exists, OuterRef
+from django.http import HttpResponseForbidden, HttpResponseRedirect
+from .models import Event, User, Category, Comment, Venue, Ticket, Rating, RefoundRequest, RefoundReason, RefoundStatus, \
+    Notification, NotificationUser, Favorite
 from django.contrib import messages
 import re
 import random
@@ -92,6 +94,7 @@ def event_detail(request, id):
 
 
 
+
 @login_required
 def event_delete(request, id):
     user = request.user
@@ -173,6 +176,7 @@ def events(request):
     order = request.GET.get("order", "asc")
     category_id = request.GET.get("category")
     venue_id = request.GET.get("venue")
+    favorites_only = request.GET.get("favorites_only") == "on"
 
     if user.is_organizer:
         events = Event.objects.filter(organizer=user)
@@ -185,10 +189,21 @@ def events(request):
     if venue_id:
         events = events.filter(venue_id=venue_id)
 
+    if favorites_only:
+        events = events.filter(favorites__user=user)
+    else:
+        events = events.annotate(is_favorite=Exists(Favorite.objects.filter(user=user, event=OuterRef('pk'))))
+
     if order == "desc":
         events = events.order_by("-scheduled_at")
     else:
         events = events.order_by("scheduled_at")
+
+    favorite_event_ids = set(
+        Favorite.objects.filter(user=user).values_list("event_id", flat=True)
+    )
+    for event in events:
+        event.is_favorite = event.id in favorite_event_ids
 
     categories = Category.objects.filter(is_active=True)
     venues = Venue.objects.all()
@@ -204,6 +219,7 @@ def events(request):
             "selected_venue": venue_id,
             "order": order,
             "user_is_organizer": user.is_organizer,
+            "favorites_only": favorites_only,
         },
     )
 
@@ -503,7 +519,7 @@ def comprar_ticket(request, event_id):
 
     user = request.user
     tickets_previos = Ticket.objects.filter(user=user, event=event).aggregate(total=Sum('quantity'))['total'] or 0
-    tickets_disponibles = max(0, 4 - tickets_previos)  
+    tickets_disponibles = max(0, 4 - tickets_previos)
 
     if request.method == 'POST':
         # Obtener datos del formulario
@@ -520,7 +536,7 @@ def comprar_ticket(request, event_id):
                 'event': event,
                 'event_id': event_id
             })
-        
+
         if tickets_previos + quantity > 4:
             disponibles = max(0, 4 - tickets_previos)
             messages.error(
@@ -531,7 +547,7 @@ def comprar_ticket(request, event_id):
                 'event': event,
                 'event_id': event_id
             })
-        
+
         # verificar si hay cupo, si no hay cupo se muestra un error que diga no quedan entradas
         if event.capacity is not None:
             tickets_vendidos = Ticket.objects.filter(event=event).aggregate(total=Sum('quantity'))['total'] or 0
@@ -593,7 +609,7 @@ def comprar_ticket(request, event_id):
     return render(request, 'app/ticket_compra.html', {
         'event': event,
         'event_id': event_id,
-        'tickets_disponibles': tickets_disponibles  
+        'tickets_disponibles': tickets_disponibles
     })
 
 def simular_procesamiento_pago(payment_data):
@@ -1084,3 +1100,20 @@ def mark_all_notifications_read(request):
     if request.method == "POST":
         NotificationUser.objects.filter(user=request.user, read=False).update(read=True, read_at=timezone.now())
     return redirect("user_notifications")
+
+
+@login_required
+def toggle_favorite(request, event_id):
+    event = get_object_or_404(Event, id=event_id)
+    user = request.user
+    favorite, created = Favorite.objects.get_or_create(user=user, event=event)
+
+    if not created:
+        favorite.delete()
+        messages.success(request, "Evento eliminado de favoritos")
+    else:
+        messages.success(request, "Evento agregado a favoritos")
+
+    referer = request.META.get('HTTP_REFERER', reverse('events'))
+
+    return HttpResponseRedirect(referer)
