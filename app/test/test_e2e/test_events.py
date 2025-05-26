@@ -211,6 +211,8 @@ class EventDisplayTest(EventBaseTest):
         # Verificar que existe un mensaje indicando que no hay eventos
         no_events_message = self.page.locator("text=No hay eventos disponibles")
         expect(no_events_message).to_be_visible()
+    
+
 
 
 class EventPermissionsTest(EventBaseTest):
@@ -263,6 +265,30 @@ class EventPermissionsTest(EventBaseTest):
         # Verificar que NO aparece el mensaje de DEMANDA ALTA
         expect(self.page.get_by_text("DEMANDA BAJA")).to_have_count(0)
 
+    def test_event_verificate_countdown(self):
+        """Test que verifica que el contador de eventos se muestre correctamente para usuarios que no son organizadores"""
+        # Iniciar sesión como usuario regular
+        self.login_user("usuario", "password123")
+
+        # Ir a la página de eventos
+        self.page.goto(f"{self.live_server_url}/events/{self.event1.pk}/")
+
+        # Verificar que el evento tiene un contador visible
+        countdown = self.page.locator("#countdown")
+        expect(countdown).to_be_visible()
+
+#verifica que si sos organizador no se muestre el contador
+    def test_event_no_countdown_for_organizer(self):
+        """Test que verifica que el contador de eventos no se muestre para organizadores"""
+        # Iniciar sesión como organizador
+        self.login_user("organizador", "password123")
+
+        # Ir a la página de eventos
+        self.page.goto(f"{self.live_server_url}/events/{self.event1.pk}/")
+
+        # Verificar que el evento no tiene un contador visible
+        countdown = self.page.locator("#countdown")
+        expect(countdown).to_have_count(0)
 
 
 class EventCRUDTest(EventBaseTest):
