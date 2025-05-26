@@ -4,7 +4,7 @@ from django.test import TestCase
 from django.utils import timezone
 from datetime import timedelta
 
-from app.models import Event, User
+from app.models import Event, User, Ticket
 
 
 class EventModelTest(TestCase):
@@ -193,5 +193,29 @@ class EventModelTest(TestCase):
 
         event.check_and_update_status()
 
-        
+
         self.assertEqual(event.status, "Cancelado")
+    def test_evento_agotado_si_llega_a_capacidad(self):
+        event = Event.objects.create(
+            title="Evento con Tickets",
+            capacity=5,
+            scheduled_at=self.future_date,
+            status="Activo",
+            organizer=self.organizer
+        )
+
+        Ticket.objects.create(
+            event=event,
+            quantity=3,
+            ticket_code="A1",
+            user=self.organizer
+        )
+        Ticket.objects.create(
+            event=event,
+            quantity=2,
+            ticket_code="A2",
+            user=self.organizer
+        )
+
+        event.check_and_update_agotado()
+        self.assertEqual(event.status, "Agotado")
