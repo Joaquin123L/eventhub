@@ -1129,6 +1129,26 @@ def toggle_favorite(request, event_id):
 
     return HttpResponseRedirect(referer)
 
+def parse_survey_data(post_data):
+    try:
+        sat_lvl   = int(post_data['satisfaction_level'])
+        ease      = int(post_data['ease_of_search'])
+        pay_exp   = int(post_data['payment_experience'])
+        received  = post_data.get('received_ticket') in ('on', 'true', '1')
+        recommend = int(post_data['would_recommend'])
+        comments  = post_data.get('additional_comments', '').strip()
+    except (KeyError, ValueError) as e:
+        raise ValueError("Datos de encuesta inválidos") from e
+
+    return {
+        'satisfaction_level': sat_lvl,
+        'ease_of_search': ease,
+        'payment_experience': pay_exp,
+        'received_ticket': received,
+        'would_recommend': recommend,
+        'additional_comments': comments,
+    }
+
 @login_required
 def satisfaction_survey(request, ticket_id):
     ticket = get_object_or_404(Ticket, pk=ticket_id)
@@ -1138,47 +1158,25 @@ def satisfaction_survey(request, ticket_id):
 
     if request.method == 'POST':
         try:
-            sat_lvl   = int(request.POST['satisfaction_level'])
-            ease      = int(request.POST['ease_of_search'])
-            pay_exp   = int(request.POST['payment_experience'])
-            # Booleano: chequeamos si el checkbox está presente
-            received  = request.POST.get('received_ticket') in ('on', 'true', '1')
-            recommend = int(request.POST['would_recommend'])
-            comments  = request.POST.get('additional_comments', '').strip()
-        except (KeyError, ValueError):
+            data = parse_survey_data(request.POST)
+        except ValueError:
             return render(request, 'app/satisfaction_survey.html', {
                 'ticket': ticket,
-                'satisfaction_level_choices': SatisfactionSurvey._meta
-                          .get_field('satisfaction_level').choices,
-                'ease_of_search_choices': SatisfactionSurvey._meta
-                          .get_field('ease_of_search').choices,
-                'payment_experience_choices': SatisfactionSurvey._meta
-                          .get_field('payment_experience').choices,
-                'would_recommend_choices': SatisfactionSurvey._meta
-                          .get_field('would_recommend').choices,
+                'satisfaction_level_choices': SatisfactionSurvey._meta.get_field('satisfaction_level').choices,
+                'ease_of_search_choices':    SatisfactionSurvey._meta.get_field('ease_of_search').choices,
+                'payment_experience_choices':SatisfactionSurvey._meta.get_field('payment_experience').choices,
+                'would_recommend_choices':   SatisfactionSurvey._meta.get_field('would_recommend').choices,
                 'error_message': "Por favor, complete todos los campos correctamente."
             })
 
-        SatisfactionSurvey.objects.create(
-            ticket             = ticket,
-            satisfaction_level = sat_lvl,
-            ease_of_search     = ease,
-            payment_experience = pay_exp,
-            received_ticket    = received,
-            would_recommend    = recommend,
-            additional_comments= comments,
-        )
-
+        SatisfactionSurvey.objects.create(ticket=ticket, **data)
         return redirect('events')
 
-    return render(request, 'app/satisfaction_survey.html', context={
+    # GET
+    return render(request, 'app/satisfaction_survey.html', {
         'ticket': ticket,
-        'satisfaction_level_choices': SatisfactionSurvey._meta
-        .get_field('satisfaction_level').choices,
-        'ease_of_search_choices': SatisfactionSurvey._meta
-        .get_field('ease_of_search').choices,
-        'payment_experience_choices': SatisfactionSurvey._meta
-        .get_field('payment_experience').choices,
-        'would_recommend_choices': SatisfactionSurvey._meta
-        .get_field('would_recommend').choices,
+        'satisfaction_level_choices': SatisfactionSurvey._meta.get_field('satisfaction_level').choices,
+        'ease_of_search_choices':    SatisfactionSurvey._meta.get_field('ease_of_search').choices,
+        'payment_experience_choices':SatisfactionSurvey._meta.get_field('payment_experience').choices,
+        'would_recommend_choices':   SatisfactionSurvey._meta.get_field('would_recommend').choices,
     })
