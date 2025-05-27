@@ -1,6 +1,6 @@
 import datetime
 import time
-
+from datetime import timedelta
 from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -201,7 +201,7 @@ class EventFormSubmissionTest(BaseEventTestCase):
         "time": "14:30",
         "category": self.category.pk,
         "venue": self.venue.pk,
-        "capacity": "100", 
+        "capacity": "100",
     }
 
         # Hacer petición POST a la vista event_form
@@ -231,10 +231,10 @@ class EventFormSubmissionTest(BaseEventTestCase):
 
         # Datos para actualizar el evento
         updated_data = {
-        "id": self.event1.pk, 
+        "id": self.event1.pk,
         "title": "Evento 1 Actualizado",
         "description": "Nueva descripción actualizada",
-        "date": "2025-06-15",  
+        "date": "2025-06-15",
         "time": "16:45",
         "category": self.category.pk,
         "venue": self.venue.pk,
@@ -365,3 +365,29 @@ class EventDeleteViewTest(BaseEventTestCase):
         self.assertIn("porcentaje_ocupado", response.context)
         self.assertEqual(response.context["porcentaje_ocupado"], 40.0)
         self.assertEqual(response.context["tickets_vendidos"], 40)
+
+class EventStatusIntegrationTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.organizer = User.objects.create_user(
+            username="organizador",
+            email="organizador@example.com",
+            password="password123",
+            is_organizer=True
+        )
+        self.client.login(username="organizador", password="password123")
+        self.future_date = timezone.now() + timedelta(days=5)
+        self.past_date = timezone.now() - timedelta(days=5)
+    def test_evento_se_cancela(self):
+        event = Event.objects.create(
+            title="Evento Cancelable",
+            capacity=10,
+            scheduled_at=self.future_date,
+            status="Activo",
+            organizer=self.organizer
+        )
+        response = self.client.get(reverse('event_cancel', kwargs={'pk': event.pk}))
+        self.assertEqual(response.status_code, 302)
+
+        event.refresh_from_db()
+        self.assertEqual(event.status, "Cancelado")
