@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.db.models import Count
 from django.http import HttpResponseForbidden
-from .models import Event, User, Category, Comment, Venue, Ticket, Rating, RefoundRequest, RefoundReason, RefoundStatus,Notification, NotificationUser
+from .models import Event, User, Category, Comment, Venue, Ticket, Rating, RefoundRequest, RefoundReason, RefoundStatus,Notification, NotificationUser, DiscountCode
 from django.contrib import messages
 import re
 import random
@@ -13,8 +13,12 @@ from django.db import IntegrityError
 from django.utils.timezone import now
 from django.db.models import Sum
 from django.db.models import Avg
-
-
+from django.http import JsonResponse
+import json
+from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_POST
+from django.utils import timezone
+from django.utils.timezone import make_aware
 
 def register(request):
     if request.method == "POST":
@@ -70,6 +74,246 @@ def home(request):
     })
 
 
+@login_required
+@require_http_methods(["POST"])
+
+def validate_discount_code(request):
+    """
+    Endpoint AJAX para validar códigos de descuento
+    """
+    try:
+        data = json.loads(request.body)
+        code = data.get('code', '').strip().upper()
+        event_id = data.get('event_id')
+        
+        if not code or not event_id:
+            return JsonResponse({
+                'valid': False,
+                'message': 'Código o evento no proporcionado'
+            })
+        
+        # Verificar que el evento existe
+        event = get_object_or_404(Event, pk=event_id)
+        
+        # Buscar el código de descuento
+        try:
+            discount_code = DiscountCode.objects.get(
+                code=code,
+                event=event
+            )
+        except DiscountCode.DoesNotExist:
+            return JsonResponse({
+                'valid': False,
+                'message': 'Código de descuento no válido'
+            })
+        
+        # Validar si el código está activo y en fechas válidas
+        if not discount_code.is_valid():
+            return JsonResponse({
+                'valid': False,
+                'message': 'Código de descuento expirado o inactivo'
+            })
+        
+        return JsonResponse({
+            'valid': True,
+            'message': f'Código válido - {discount_code.discount_percentage}% de descuento',
+            'discount_percentage': float(discount_code.discount_percentage),
+            'discount_code_id': discount_code.pk
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'valid': False,
+            'message': 'Datos inválidos'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'valid': False,
+            'message': 'Error interno del servidor'
+        })
+
+
+@login_required
+def discount_code_list(request, event_id=None):
+    if not request.user.is_organizer:
+       return redirect('events')
+    
+    """Lista códigos de descuento del organizador"""
+    if event_id:
+        event = get_object_or_404(Event, id=event_id, organizer=request.user)
+        discount_codes = DiscountCode.objects.filter(event=event).order_by('-id')
+    else:
+        # Todos los códigos de eventos del organizador
+        user_events = Event.objects.filter(organizer=request.user)
+        discount_codes = DiscountCode.objects.filter(event__in=user_events).order_by('-id')
+    
+    # Eventos del organizador para el select
+    user_events = Event.objects.filter(organizer=request.user)
+    
+    context = {
+        'discount_codes': discount_codes,
+        'user_events': user_events,
+        'event': locals().get('event'),
+    }
+    return render(request, 'app/discount_code_list.html', context)
+
+@login_required
+@require_POST
+def discount_code_create(request):
+    if not request.user.is_organizer:
+       return redirect('events')
+    
+    """Crear nuevo código usando el método del modelo"""
+
+    code = request.POST.get('code', '').strip()
+    discount_percentage = request.POST.get('discount_percentage')
+    event_id = request.POST.get('event')
+    valid_from_str = request.POST.get('valid_from')
+    valid_until_str = request.POST.get('valid_until')
+    active = request.POST.get('active') == 'on'
+    
+    # Convertir strings a tipos correctos
+    try:
+        discount_percentage = float(discount_percentage) if discount_percentage else None
+    except (ValueError, TypeError):
+        discount_percentage = None
+    
+    # Parsear fechas
+    try:
+        valid_from = make_aware(datetime.datetime.strptime(valid_from_str, "%Y-%m-%dT%H:%M")) if valid_from_str else None
+        valid_until = make_aware(datetime.datetime.strptime(valid_until_str, "%Y-%m-%dT%H:%M")) if valid_until_str else None
+    except (ValueError, TypeError):
+        valid_from = valid_until = None
+        messages.error(request, "Formato de fecha inválido. Use YYYY-MM-DDTHH:MM")
+    
+    event = None
+    if event_id:
+        try:
+            event = Event.objects.get(id=event_id, organizer=request.user)
+        except Event.DoesNotExist:
+            messages.error(request, "Evento no válido")
+            return redirect('discount_code_list')
+    
+    success, result = DiscountCode.new(
+        code=code,
+        discount_percentage=discount_percentage,
+        event=event,
+        valid_from=valid_from,
+        valid_until=valid_until,
+        active=active
+    )
+    
+    if success:
+        messages.success(request, f'Código creado: "{result.code}"') # type: ignore
+    else:
+        for field, error in result.items(): # type: ignore
+            messages.error(request, f'{field}: {error}')
+    
+    return redirect('discount_code_list')
+
+@login_required
+@require_POST
+def discount_code_delete(request, discount_id):
+    if not request.user.is_organizer:
+       return redirect('events')
+    
+    """Eliminar código de descuento"""
+    discount_code = get_object_or_404(
+        DiscountCode, 
+        id=discount_id, 
+        event__organizer=request.user
+    )
+    
+    code_name = discount_code.code
+    discount_code.delete()
+    
+    messages.success(request, f'Código de descuento "{code_name}" eliminado exitosamente')
+    return redirect('discount_code_list')
+
+
+@login_required
+@require_POST
+
+def discount_code_update(request, discount_id):
+    if not request.user.is_organizer:
+       return redirect('events')
+    """Actualizar código usando el método del modelo"""
+    discount_code = get_object_or_404(
+        DiscountCode, 
+        id=discount_id, 
+        event__organizer=request.user
+    )
+    
+    code = request.POST.get('code', '').strip()
+    discount_percentage = request.POST.get('discount_percentage')
+    valid_from_str = request.POST.get('valid_from')
+    valid_until_str = request.POST.get('valid_until')
+    active = request.POST.get('active') == 'on'
+    event_id = request.POST.get('event')
+    new_event = Event.objects.get(id=event_id, organizer=request.user)
+
+        
+    # Convertir tipos
+    try:
+        discount_percentage = float(discount_percentage) if discount_percentage else None
+    except (ValueError, TypeError):
+        discount_percentage = None
+    
+    # Parsear fechas
+    try:
+        valid_from = make_aware(datetime.datetime.strptime(valid_from_str, "%Y-%m-%dT%H:%M")) if valid_from_str else None
+        valid_until = make_aware(datetime.datetime.strptime(valid_until_str, "%Y-%m-%dT%H:%M")) if valid_until_str else None
+    except (ValueError, TypeError):
+        valid_from = valid_until = None
+        messages.error(request, "Formato de fecha inválido. Use YYYY-MM-DDTHH:MM")
+    
+    success, result = discount_code.update(
+        code=code,
+        discount_percentage=discount_percentage,
+        valid_from=valid_from,
+        valid_until=valid_until,
+        active=active,
+        event=new_event
+    )
+    
+    if success:
+        messages.success(request, f'Código "{result.code}" actualizado exitosamente') # type: ignore
+    else:
+        # Mostrar errores
+        for field, error in result.items(): # type: ignore
+            messages.error(request, f'{error}')
+    
+    return redirect('discount_code_list')
+
+@login_required
+def discount_code_toggle_active(request, discount_id):
+    if not request.user.is_organizer:
+       return redirect('events')
+
+    """Activar/desactivar código usando el método del modelo"""
+    discount_code = get_object_or_404(
+        DiscountCode, 
+        id=discount_id, 
+        event__organizer=request.user
+    )
+    
+    if discount_code.active:
+        discount_code.desactivate()
+        message = f'Código "{discount_code.code}" desactivado exitosamente'
+    else:
+        discount_code.active = True
+        discount_code.save(update_fields=['active'])
+        message = f'Código "{discount_code.code}" activado exitosamente'
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({
+            'success': True,
+            'active': discount_code.active,
+            'message': message
+        })
+    
+    messages.success(request, message)
+    return redirect('discount_code_list')
 
 @login_required
 def event_detail(request, id):
@@ -510,10 +754,13 @@ def comprar_ticket(request, event_id):
         ticket_code = request.POST.get('ticket_code')
         quantity = request.POST.get('quantity')
         type_entrada = request.POST.get('type')
+        discount_code_id = request.POST.get('discount_code_id')  # Nuevo campo
+        
         try:
             quantity = int(quantity)
         except ValueError:
             quantity = 0
+            
         if quantity <= 0:
             messages.error(request, "La cantidad de entradas debe ser mayor a 0.")
             return render(request, 'app/ticket_compra.html', {
@@ -532,23 +779,55 @@ def comprar_ticket(request, event_id):
                 'event_id': event_id
             })
         
-        # verificar si hay cupo, si no hay cupo se muestra un error que diga no quedan entradas
+        # Verificar capacidad del evento
         if event.capacity is not None:
             tickets_vendidos = Ticket.objects.filter(event=event).aggregate(total=Sum('quantity'))['total'] or 0
             if tickets_vendidos + quantity > event.capacity:
-                # mostrar cantidad de entradas disponibles
-                tickets_disponibles = event.capacity - tickets_vendidos
-                if tickets_disponibles == 0:
+                tickets_disponibles_evento = event.capacity - tickets_vendidos
+                if tickets_disponibles_evento == 0:
                     error = "No quedan entradas disponibles."
                 else:
-                    error = f"No quedan entradas disponibles. Solo quedan {tickets_disponibles} entradas."
+                    error = f"No quedan entradas disponibles. Solo quedan {tickets_disponibles_evento} entradas."
 
                 return render(request, 'app/ticket_compra.html', {
                     'event': event,
                     'event_id': event_id,
                     'error': error
                 })
-        # Datos de pago (estos se enviarían a una API externa en un caso real)
+
+        # Procesar código de descuento si existe
+        discount_code_obj = None
+        discount_percentage = None
+        
+        if discount_code_id:
+            try:
+               # discount_code_obj = DiscountCode.objects.get(id=discount_code_id,event=event)
+                discount_code_obj = DiscountCode.objects.get(id=discount_code_id)
+                # verificar que el codigo es valido para este evento
+                if discount_code_obj.event != event:
+                    messages.error(request, "Código de descuento no válido para este evento.")
+                    return render(request, 'app/ticket_compra.html', {
+                        'event': event,
+                        'event_id': event_id
+                    })
+                if not discount_code_obj.is_valid():
+                    messages.error(request, "El código de descuento ya no es válido.")
+                    return render(request, 'app/ticket_compra.html', {
+                        'event': event,
+                        'event_id': event_id
+                    })
+
+                # Solo si todo está bien, asignamos el porcentaje
+                discount_percentage = int(discount_code_obj.discount_percentage)
+
+            except DiscountCode.DoesNotExist:
+                messages.error(request, "Código de descuento no encontrado.")
+                return render(request, 'app/ticket_compra.html', {
+                    'event': event,
+                    'event_id': event_id
+                })
+
+        # Datos de pago
         payment_data = {
             'card_number': request.POST.get('card_number'),
             'card_expiry': request.POST.get('card_expiry'),
@@ -556,7 +835,7 @@ def comprar_ticket(request, event_id):
             'card_name': request.POST.get('card_name'),
         }
 
-        # Simulación de llamada a API de pago
+        # Simulación de procesamiento de pago
         payment_success = simular_procesamiento_pago(payment_data)
 
         if not payment_success:
@@ -567,6 +846,7 @@ def comprar_ticket(request, event_id):
                 'error': "Error en el procesamiento del pago"
             })
 
+        # Validar datos del ticket
         errors = Ticket.validate(ticket_code, quantity)
 
         if errors:
@@ -577,25 +857,32 @@ def comprar_ticket(request, event_id):
                 'event_id': event_id
             })
 
-        user = request.user
-
+        # Crear el ticket con el descuento aplicado
         ticket = Ticket.objects.create(
             ticket_code=ticket_code,
             quantity=quantity,
             type=type_entrada,
             user=user,
-            event=event
+            event=event,
+            discount_code=discount_code_obj,  # Guardar referencia al código
+            discount_percentage=discount_percentage  # Guardar porcentaje fijo
         )
+        
         event.check_and_update_agotado()
 
-        messages.success(request, f"¡Compra exitosa! Tu código de ticket es: {ticket_code}")
+        # Mensaje de éxito con información del descuento
+        success_message = f"¡Compra exitosa! Tu código de ticket es: {ticket_code}"
+        if discount_percentage:
+            success_message += f" (Descuento aplicado: {discount_percentage}%)"
+            
+        messages.success(request, success_message)
         return redirect('events')
+        
     return render(request, 'app/ticket_compra.html', {
         'event': event,
         'event_id': event_id,
         'tickets_disponibles': tickets_disponibles  
     })
-
 def simular_procesamiento_pago(payment_data):
     """
     Función para simular el procesamiento de pago con una pasarela externa.

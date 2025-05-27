@@ -50,4 +50,13 @@ urlpatterns = [
     path('notifications/mark_all_read/', views.mark_all_notifications_read, name='mark_all_read'),
     path('notifications/mark_read/<int:id>/', views.mark_notification_read, name='mark_notification_read'),
     path('event/<int:pk>/cancel/', views.event_cancel, name='event_cancel'),
+   
+    path('validate-discount-code/', views.validate_discount_code, name='validate_discount_code'),
+    path('discount-codes/', views.discount_code_list, name='discount_code_list'),
+    path('discount-codes/create/', views.discount_code_create, name='discount_code_create'),
+    path('discount-codes/<int:discount_id>/update/', views.discount_code_update, name='discount_code_update'),
+    path('discount-codes/<int:discount_id>/delete/', views.discount_code_delete, name='discount_code_delete'),
+    path('discount-codes/<int:discount_id>/toggle-active/', views.discount_code_toggle_active, name='discount_code_toggle_active'),
+
+
 ]
