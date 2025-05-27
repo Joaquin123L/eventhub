@@ -391,3 +391,15 @@ class EventStatusIntegrationTest(TestCase):
 
         event.refresh_from_db()
         self.assertEqual(event.status, "Cancelado")
+        
+    def test_evento_finalizado_automaticamente(self):
+        event = Event.objects.create(
+            title="Evento Finalizado",
+            capacity=10,
+            scheduled_at=self.past_date,
+            status="Activo",
+            organizer=self.organizer
+        )
+        event.check_and_update_status()
+        event.refresh_from_db()
+        self.assertEqual(event.status, "Finalizado")
