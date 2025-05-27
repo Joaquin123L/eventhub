@@ -56,6 +56,10 @@ class Event(models.Model):
         if self.scheduled_at > now and self.status not in ["Cancelado", "Finalizado"]:
             return self.scheduled_at - now
         return None
+    
+    @property
+    def es_pasado(self):
+        return self.scheduled_at < timezone.now()
 
     def is_organizer(self, user):
         return self.organizer == user
