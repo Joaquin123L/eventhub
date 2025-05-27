@@ -93,6 +93,26 @@ class EventsListViewTest(BaseEventTestCase):
         # Verificar que redirecciona al login
         self.assertEqual(response.status_code, 302)
         self.assertTrue(response['Location'].startswith("/accounts/login/"))
+    
+    def test_events_view_excludes_past_events(self):
+        """Test que verifica que la vista events no muestra eventos pasados"""
+        # Crear un evento pasado
+        past_event = Event.objects.create(
+            title="Evento Pasado",
+            description="Descripción del evento pasado",
+            scheduled_at=timezone.now() - datetime.timedelta(days=1),
+            organizer=self.organizer,
+        )
+
+        # Login con usuario regular
+        self.client.login(username="regular", password="password123")
+
+        # Hacer petición a la vista events
+        response = self.client.get(reverse("events"))
+
+        # Verificar respuesta
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(past_event, response.context["events"])
 
 
 class EventDetailViewTest(BaseEventTestCase):
