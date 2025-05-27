@@ -17,7 +17,7 @@
                 <div class="mb-3">
                     <label for="quantity" class="form-label">Cantidad de Entradas</label>
                     <input type="number" id="quantity" name="quantity" class="form-control" value="1" min="1" max="{{ tickets_disponibles }}" required>
-<small class="text-muted">Puedes comprar hasta {{ tickets_disponibles }} entradas para este evento.</small>
+                    <small class="text-muted">Puedes comprar hasta {{ tickets_disponibles }} entradas para este evento.</small>
 
                 </div>
                 
@@ -28,6 +28,18 @@
                         <option value="vip">VIP - $100</option>
                     </select>
                 </div>
+
+                <!-- Nuevo campo para código de descuento -->
+                <div class="mb-3">
+                    <label for="discount_code" class="form-label">Código de Descuento (Opcional)</label>
+                    <div class="input-group">
+                        <input type="text" id="discount_code" name="discount_code" class="form-control" placeholder="Ingresa tu código de descuento">
+                        <button type="button" id="validate-discount" class="btn btn-outline-secondary">Validar</button>
+                    </div>
+                    <div id="discount-feedback" class="mt-2"></div>
+                    <input type="hidden" id="discount_code_id" name="discount_code_id" value="">
+                </div>
+                
                 <div class="card mb-4">
                     <div class="card-header">
                         <h5 class="mb-0">Método de pago</h5>
@@ -90,6 +102,11 @@
                             <span>Subtotal:</span>
                             <span id="subtotal">$50.00</span>
                         </li>
+                        <!-- Nueva línea para descuento -->
+                        <li class="list-group-item d-flex justify-content-between text-success" id="discount-line" style="display: none;">
+                            <span>Descuento (<span id="discount-percent">0</span>%):</span>
+                            <span id="discount-amount">-$0.00</span>
+                        </li>
                         <li class="list-group-item d-flex justify-content-between">
                             <span>Impuestos (10%):</span>
                             <span id="impuestos">$5.00</span>
@@ -120,16 +137,33 @@
     document.addEventListener('DOMContentLoaded', function() {
         const quantityInput = document.getElementById('quantity');
         const typeSelect = document.getElementById('type');
+        const discountCodeInput = document.getElementById('discount_code');
+        const validateDiscountBtn = document.getElementById('validate-discount');
+        const discountFeedback = document.getElementById('discount-feedback');
+        const discountCodeIdInput = document.getElementById('discount_code_id');
+        
+        // Elementos del resumen
         const precioUnitarioElement = document.getElementById('precio-unitario');
         const cantidadElement = document.getElementById('cantidad-display');
         const subtotalElement = document.getElementById('subtotal');
+        const discountLine = document.getElementById('discount-line');
+        const discountPercent = document.getElementById('discount-percent');
+        const discountAmount = document.getElementById('discount-amount');
         const impuestosElement = document.getElementById('impuestos');
         const totalElement = document.getElementById('total');
+        
         const paymentForm = document.getElementById('payment-form');
         const submitBtn = document.getElementById('submit-btn');
 
+        // Variables para el descuento
+        let currentDiscount = {
+            valid: false,
+            percentage: 0,
+            id: null
+        };
+
         function actualizarResumen() {
-            
+        
             const cantidad = parseInt(quantityInput.value) || 1;
             const tipo = typeSelect.value;
             
@@ -138,16 +172,108 @@
             
             
             const subtotal = precioUnitario * cantidad;
-            const impuestos = subtotal * 0.10;
-            const total = subtotal + impuestos;
             
+            // Calcular descuento
+            let descuentoMonto = 0;
+            if (currentDiscount.valid) {
+                descuentoMonto = subtotal * (currentDiscount.percentage / 100);
+            }
             
+            const subtotalConDescuento = subtotal - descuentoMonto;
+            const impuestos = subtotalConDescuento * 0.10;
+            const total = subtotalConDescuento + impuestos;
+            
+            // Actualizar elementos
             precioUnitarioElement.textContent = '$' + precioUnitario;
             cantidadElement.textContent = cantidad;
             subtotalElement.textContent = '$' + subtotal.toFixed(2);
+            
+            // Mostrar/ocultar línea de descuento
+            if (currentDiscount.valid && descuentoMonto > 0) {
+                discountLine.style.display = 'flex';
+                discountPercent.textContent = currentDiscount.percentage;
+                discountAmount.textContent = '-$' + descuentoMonto.toFixed(2);
+            } else {
+                discountLine.style.display = 'none';
+            }
+            
             impuestosElement.textContent = '$' + impuestos.toFixed(2);
             totalElement.textContent = '$' + total.toFixed(2);
         }
+
+        function validarCodigoDescuento() {
+            const codigo = discountCodeInput.value.trim();
+            
+            if (!codigo) {
+                currentDiscount = { valid: false, percentage: 0, id: null };
+                discountCodeIdInput.value = '';
+                discountFeedback.innerHTML = '';
+                actualizarResumen();
+                return;
+            }
+
+            validateDiscountBtn.disabled = true;
+            validateDiscountBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+            
+            fetch('{% url "validate_discount_code" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({
+                    code: codigo,
+                    event_id: "{{ event_id }}"
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.valid) {
+                    currentDiscount = {
+                        valid: true,
+                        percentage: data.discount_percentage,
+                        id: data.discount_code_id
+                    };
+                    discountCodeIdInput.value = data.discount_code_id;
+                    discountFeedback.innerHTML = `<div class="alert alert-success py-2 mb-0"><small>${data.message}</small></div>`;
+                } else {
+                    currentDiscount = { valid: false, percentage: 0, id: null };
+                    discountCodeIdInput.value = '';
+                    discountFeedback.innerHTML = `<div class="alert alert-danger py-2 mb-0"><small>${data.message}</small></div>`;
+                }
+                actualizarResumen();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                currentDiscount = { valid: false, percentage: 0, id: null };
+                discountCodeIdInput.value = '';
+                discountFeedback.innerHTML = '<div class="alert alert-danger py-2 mb-0"><small>Error al validar el código</small></div>';
+                actualizarResumen();
+            })
+            .finally(() => {
+                validateDiscountBtn.disabled = false;
+                validateDiscountBtn.textContent = 'Validar';
+            });
+        }
+
+        // Event listeners
+        validateDiscountBtn.addEventListener('click', validarCodigoDescuento);
+        
+        discountCodeInput.addEventListener('input', function() {
+            if (!this.value.trim()) {
+                currentDiscount = { valid: false, percentage: 0, id: null };
+                discountCodeIdInput.value = '';
+                discountFeedback.innerHTML = '';
+                actualizarResumen();
+            }
+        });
+
+        discountCodeInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                validarCodigoDescuento();
+            }
+        });
         
         // Formatear número de tarjeta
         document.getElementById('card_number').addEventListener('input', function(e) {
@@ -191,10 +317,10 @@
             const cantidad = parseInt(quantityInput.value);
             const maxPermitido = parseInt('{{ tickets_disponibles }}');
 
-    if (cantidad < 1 || cantidad > maxPermitido) {
-        alert(`Solo puedes comprar entre 1 y ${maxPermitido} entradas.`);
-        return; 
-    }
+            if (cantidad < 1 || cantidad > maxPermitido) {
+                alert(`Solo puedes comprar entre 1 y ${maxPermitido} entradas.`);
+                return; 
+            }
             // Deshabilitar botón y mostrar indicador de carga
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Procesando...';
