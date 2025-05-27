@@ -4,7 +4,6 @@ from datetime import datetime
 from django.utils import timezone
 from django.db.models import Sum
 
-
 class User(AbstractUser):
     is_organizer = models.BooleanField(default=False)
 
@@ -215,6 +214,118 @@ class Venue(models.Model):
     def __str__(self):
         return self.name
 
+class DiscountCode(models.Model):
+    code = models.CharField(max_length=50, unique=True)
+    discount_percentage = models.DecimalField(max_digits=5, decimal_places=2)
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name="discount_codes")
+    valid_from = models.DateTimeField()
+    valid_until = models.DateTimeField()
+    active = models.BooleanField(default=True)
+
+    def is_valid(self):
+        now = timezone.now()
+        if not (self.valid_from <= now <= self.valid_until):
+            if self.active:
+                self.active = False
+                self.save(update_fields=["active"])
+            return False
+        return self.active
+
+    @classmethod
+    def validate(cls, code, discount_percentage, event, valid_from, valid_until):
+        errors = {}
+
+        # Validar código
+        if not code or code.strip() == "":
+            errors["code"] = "El código de descuento es requerido"
+        elif len(code.strip()) < 3:
+            errors["code"] = "El código debe tener al menos 3 caracteres"
+
+        # Validar porcentaje de descuento
+        if discount_percentage is None:
+            errors["discount_percentage"] = "El porcentaje de descuento es requerido"
+        elif discount_percentage < 0 or discount_percentage > 100:
+            errors["discount_percentage"] = "El porcentaje debe estar entre 0 y 100"
+
+        # Validar evento
+        if event is None:
+            errors["event"] = "El evento es requerido"
+            
+
+        # Validar fechas
+        if valid_from is None:
+            errors["valid_from"] = "La fecha de inicio es requerida"
+        
+        if valid_until is None:
+            errors["valid_until"] = "La fecha de fin es requerida"
+        
+        if valid_from and valid_until and valid_from >= valid_until:
+            errors["valid_until"] = "La fecha de fin debe ser posterior a la fecha de inicio"
+
+        # Validar que las fechas no sean en el pasado (solo para creación)
+        now = timezone.now()
+        if valid_until and valid_until <= now:
+            errors["valid_until"] = "La fecha de fin no puede ser en el pasado"
+
+        return errors
+
+    @classmethod
+    def new(cls, code, discount_percentage, event, valid_from, valid_until, active=True):
+        errors = cls.validate(code, discount_percentage, event, valid_from, valid_until)
+
+        # Validar unicidad del código
+        if code and cls.objects.filter(code=code.strip().upper()).exists():
+            errors["code"] = "Ya existe un código de descuento con este nombre"
+
+        if len(errors.keys()) > 0:
+            return False, errors
+
+        discount_code = cls.objects.create(
+            code=code.strip().upper(),
+            discount_percentage=discount_percentage,
+            event=event,
+            valid_from=valid_from,
+            valid_until=valid_until,
+            active=active
+        )
+        return True, discount_code
+
+    def update(self, code=None, discount_percentage=None, valid_from=None, event=None, valid_until=None, active=None):
+        # Usar valores actuales si no se proporcionan nuevos
+        new_code = code.strip().upper() if code else self.code
+        new_discount_percentage = discount_percentage if discount_percentage is not None else self.discount_percentage
+        new_valid_from = valid_from if valid_from else self.valid_from
+        new_valid_until = valid_until if valid_until else self.valid_until
+        new_active = active if active is not None else self.active
+        new_event = event if event is not None else self.event  
+
+        # Validar los nuevos valores
+        errors = self.validate(new_code, new_discount_percentage, self.event, new_valid_from, new_valid_until)
+        
+        # Para actualización, permitir fechas en el pasado si ya estaban así
+        if "valid_until" in errors and self.valid_until <= timezone.now():
+            del errors["valid_until"]
+
+        # Validar unicidad del código (excluyendo el actual)
+        if new_code != self.code and DiscountCode.objects.filter(code=new_code).exists():
+            errors["code"] = "Ya existe un código de descuento con este nombre"
+
+        if len(errors.keys()) > 0:
+            return False, errors
+
+        self.code = new_code
+        self.discount_percentage = new_discount_percentage
+        self.valid_from = new_valid_from
+        self.valid_until = new_valid_until
+        self.active = new_active
+        self.event = new_event
+        self.save()
+        return True, self
+
+    def desactivate(self):
+        """Método auxiliar para desactivar el código"""
+        self.active = False
+        self.save(update_fields=["active"])
 
 class Ticket(models.Model):
     buy_date = models.DateTimeField(auto_now_add=True)
@@ -223,6 +334,13 @@ class Ticket(models.Model):
     ticket_code = models.CharField(max_length=100, unique=True)
     quantity = models.IntegerField(default=1)
     type = models.CharField(max_length=50, choices=[('general', 'General'), ('vip', 'VIP')], default='general')
+    discount_code = models.ForeignKey('DiscountCode', null=True, blank=True, on_delete=models.SET_NULL)
+    #lo conservamos por si se quiere eliminar/modificar codigos de descuento.
+    discount_percentage = models.PositiveIntegerField(
+        null=True, 
+        blank=True, 
+        help_text="Porcentaje de descuento aplicado (0-100)"
+    )
 
     @classmethod
     def validate(cls, ticket_code, quantity):
@@ -237,7 +355,7 @@ class Ticket(models.Model):
         return errors
 
     @classmethod
-    def new(cls, ticket_code, quantity, user, event):
+    def new(cls, ticket_code, quantity, user, event, discount_code=None, discount_percentage=None):
         errors = cls.validate(ticket_code, quantity)
 
         if len(errors.keys()) > 0:
@@ -247,7 +365,9 @@ class Ticket(models.Model):
             ticket_code=ticket_code,
             quantity=quantity,
             user=user,
-            event=event
+            event=event,
+            discount_code=discount_code,
+            discount_percentage=discount_percentage
         )
 
     def update(self, type, quantity):
