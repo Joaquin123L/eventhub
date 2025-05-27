@@ -76,9 +76,9 @@ def home(request):
 @login_required
 def event_detail(request, id):
     event = get_object_or_404(Event, pk=id)
-    countdown = event.countdown 
+    countdown = event.countdown
     tickets_vendidos = Ticket.objects.filter(event=event).aggregate(total=Sum('quantity'))['total'] or 0
-    
+
     if countdown is not None:
         total_seconds = int(countdown.total_seconds())
         days = total_seconds // (24 * 3600)
@@ -87,7 +87,7 @@ def event_detail(request, id):
     else:
         days = hours = minutes = 0
 
-    
+
     # Porcentaje de ocupación
     if event.capacity is None or event.capacity == 0:
         porcentaje_ocupado = 0
@@ -98,7 +98,7 @@ def event_detail(request, id):
     tiene_ticket = Ticket.objects.filter(user=request.user, event=event).exists()
     promedio_rating = Rating.objects.filter(event=event).aggregate(Avg('rating'))['rating__avg'] or 0
     porcentaje_rating = round(promedio_rating * 20, 2)  # Escala de 0 a 100
-    tiene_resena = Rating.objects.filter(user=request.user, event=event).exists() 
+    tiene_resena = Rating.objects.filter(user=request.user, event=event).exists()
 
     return render(request, "app/event_detail.html", {"event": event, "todos_los_comentarios": todos_los_comentarios, "ratings": ratings, "user_is_organizer": request.user.is_organizer, "porcentaje_ocupado": porcentaje_ocupado, "tickets_vendidos": tickets_vendidos, "tiene_ticket": tiene_ticket, "promedio_rating": promedio_rating, "porcentaje_rating": porcentaje_rating, "tiene_resena": tiene_resena,"countdown": countdown,  "countdown_days": days,
         "countdown_hours": hours,"countdown_minutes": minutes,})
@@ -214,7 +214,7 @@ def events(request):
         Favorite.objects.filter(user=user).values_list("event_id", flat=True)
     )
     for event in events:
-        event.is_favorite = event.id in favorite_event_ids
+        event.is_favorite = event.pk in favorite_event_ids
 
     categories = Category.objects.filter(is_active=True)
     venues = Venue.objects.all()
