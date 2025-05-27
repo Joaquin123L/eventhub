@@ -188,9 +188,13 @@ def events(request):
     category_id = request.GET.get("category")
     venue_id = request.GET.get("venue")
     favorites_only = request.GET.get("favorites_only") == "on"
-
+    ver_pasados = request.GET.get("ver_pasados") == "on"
+    
+    
     if user.is_organizer:
         events = Event.objects.filter(organizer=user)
+        if not ver_pasados:
+            events = events.filter(scheduled_at__gte=timezone.now()).exclude(status__in=["Cancelado", "Finalizado"])
     else:
         events = Event.objects.filter(scheduled_at__gte=timezone.now()).exclude(status__in=["Cancelado", "Finalizado"])
 
@@ -231,6 +235,7 @@ def events(request):
             "order": order,
             "user_is_organizer": user.is_organizer,
             "favorites_only": favorites_only,
+            "ver_pasados": ver_pasados,
         },
     )
 
