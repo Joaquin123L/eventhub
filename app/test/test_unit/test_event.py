@@ -175,3 +175,12 @@ class EventModelTest(TestCase):
         event.save()
         self.assertIsInstance(event.countdown, datetime.timedelta)
 
+    def test_event_es_pasado_con_fecha_pasada(self):
+        """Test que verifica que si tengo un evento pasado el metodo es_pasado devuelve True"""
+        event = Event.objects.create(
+            title="Evento pasado",
+            description="Descripción del evento pasado",
+            scheduled_at=timezone.now() - datetime.timedelta(days=1),
+            organizer=self.organizer,
+        )
+        self.assertTrue(event.es_pasado)
