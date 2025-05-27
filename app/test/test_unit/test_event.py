@@ -81,7 +81,7 @@ class EventModelTest(TestCase):
         )
 
         self.assertFalse(success)
-        self.assertIn("title", errors)
+        self.assertIn("title", errors) # type: ignore
 
         # Verificar que no se creó ningún evento nuevo
         self.assertEqual(Event.objects.count(), initial_count)
@@ -153,11 +153,25 @@ class EventModelTest(TestCase):
             capacity=-10  # 
         )
         self.assertFalse(is_valid)
-        self.assertIn("capacity", errors)
+        self.assertIn("capacity", errors) # type: ignore
 
         # El test pasa si al buscar el evento salta DoesNotExist:
         with self.assertRaises(Event.DoesNotExist):
             Event.objects.get(title="Evento inválido")
 
-    
+
+    def test_event_validation_countdown(self):
+        """Test que verifica que si tengo un evento viejo el metodo countdown devuelve None"""
+        event = Event.objects.create(
+            title="Evento viejo",
+            description="Descripción del evento viejo",
+            scheduled_at=timezone.now() - datetime.timedelta(days=1),
+            organizer=self.organizer,
+        )
+        self.assertIsNone(event.countdown)
+
+        """Test que verifica que si tengo un evento futuro el metodo countdown devuelve un timedelta"""
+        event.scheduled_at = timezone.now() + datetime.timedelta(days=1)
+        event.save()
+        self.assertIsInstance(event.countdown, datetime.timedelta)
 

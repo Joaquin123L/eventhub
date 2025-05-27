@@ -50,6 +50,16 @@ class Event(models.Model):
     capacity = models.IntegerField(default=0, blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="Activo")
 
+    @property
+    def countdown(self):
+        now = timezone.now()
+        if self.scheduled_at > now and self.status not in ["Cancelado", "Finalizado"]:
+            return self.scheduled_at - now
+        return None
+
+    def is_organizer(self, user):
+        return self.organizer == user
+
     def check_and_update_agotado(self):
         total = self.tickets.aggregate(total=Sum('quantity'))['total'] or 0 # type: ignore
         total = int(total) if total is not None else 0
@@ -344,6 +354,9 @@ class RefoundRequest(models.Model):
 
     @classmethod
     def new(cls, amount, reason, refound_reason, ticket_code, user, status):
+        if cls.objects.filter(user=user, status=RefoundStatus.PENDING).exists():
+            return False, {"ATENCION": "Ya tenés una solicitud de reembolso pendiente. Cuando se resuelva podra solicitar otra."}
+
         errors = cls.validate(amount, reason, status, refound_reason, ticket_code, user)
 
         if errors:
@@ -507,3 +520,10 @@ class NotificationUser(models.Model):
 
     class Meta:
         unique_together = ('user', 'notification')
+
+class Favorite(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="favorites")
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name="favorites")
+
+    class Meta:
+        unique_together = ('user', 'event')

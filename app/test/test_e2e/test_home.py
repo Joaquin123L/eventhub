@@ -3,6 +3,7 @@ import re
 from playwright.sync_api import expect
 
 from app.test.test_e2e.base import BaseE2ETest
+from app.models import User
 
 
 # Tests para la página de inicio
@@ -10,21 +11,23 @@ class HomePageDisplayTest(BaseE2ETest):
     """Tests relacionados con la visualización de la página de inicio"""
 
     def test_home_page_loads(self):
-        """Test que verifica que la home carga correctamente"""
+        self.organizer = User.objects.create_user(
+            username="organizador",
+            email="organizador@example.com",
+            password="password123",
+            is_organizer=True,
+        )
+        self.page.goto(f"{self.live_server_url}/accounts/login/")
+        self.page.fill("input[name='username']", "organizador")
+        self.page.fill("input[name='password']", "password123")
+        self.page.click("button[type='submit']") 
+
+        expect(self.page).to_have_url(f"{self.live_server_url}/events/")
+
         self.page.goto(f"{self.live_server_url}/")
 
-        # Verificar que el logo este presente
-        logo = self.page.get_by_text("EventHub", exact=True)
-        expect(logo).to_be_visible()
-        expect(logo).to_have_attribute("href", "/")
-
-        # Verificar textos principales de la página
-        expect(self.page.get_by_text("Eventos y Entradas")).to_be_visible()
-        expect(
-            self.page.get_by_text(
-                "Descubre, organiza y participa en los mejores eventos. Compra entradas, deja comentarios y califica tus experiencias."
-            )
-        ).to_be_visible()
+        expect(self.page.get_by_text("EventHub", exact=True)).to_be_visible()
+        expect(self.page.get_by_role("img", name="Imagen Principal")).to_be_visible()
 
 
 class HomeNavigationTest(BaseE2ETest):
