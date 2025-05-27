@@ -391,7 +391,7 @@ class EventStatusIntegrationTest(TestCase):
 
         event.refresh_from_db()
         self.assertEqual(event.status, "Cancelado")
-        
+
     def test_evento_finalizado_automaticamente(self):
         event = Event.objects.create(
             title="Evento Finalizado",
@@ -403,3 +403,40 @@ class EventStatusIntegrationTest(TestCase):
         event.check_and_update_status()
         event.refresh_from_db()
         self.assertEqual(event.status, "Finalizado")
+
+    def test_evento_agotado_y_vuelve_a_activo(self):
+        event = Event.objects.create(
+            title="Evento Agotable",
+            capacity=5,
+            scheduled_at=self.future_date,
+            status="Activo",
+            organizer=self.organizer
+        )
+
+        ticket1 = Ticket.objects.create(
+            event=event,
+            user=self.organizer,
+            quantity=3,
+            ticket_code="AG1"
+        )
+        ticket2 = Ticket.objects.create(
+            event=event,
+            user=self.organizer,
+            quantity=2,
+            ticket_code="AG2"
+        )
+
+        # Simula agotado
+        event.check_and_update_agotado()
+        event.refresh_from_db()
+        self.assertEqual(event.status, "Agotado")
+
+        # Borrar un ticket vía vista
+        response = self.client.post(
+            reverse('ticket_delete', kwargs={'event_id': event.pk, 'ticket_id': ticket2.pk})
+        )
+        self.assertEqual(response.status_code, 302)
+
+        # Chequea que vuelva a activo
+        event.refresh_from_db()
+        self.assertEqual(event.status, "Activo")
