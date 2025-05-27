@@ -35,7 +35,7 @@ class SatisfactionSurveyIntegrationTest(TestCase):
         )
 
         self.client = Client()
-        self.survey_url = reverse("satisfaction_survey", args=[self.ticket.id])
+        self.survey_url = reverse("satisfaction_survey", args=[self.ticket.pk])
 
 
     def test_get_renders_form(self):

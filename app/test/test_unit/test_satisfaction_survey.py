@@ -28,7 +28,7 @@ class SatisfactionSurveyViewTest(TestCase):
             user=self.user,
             event=self.event,
         )
-        self.url = reverse('satisfaction_survey', args=[self.ticket.id])
+        self.url = reverse('satisfaction_survey', args=[self.ticket.pk])
         self.login = self.client.login(username='testuser', password='testpass123')
 
     def test_requires_login(self):

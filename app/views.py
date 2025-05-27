@@ -214,7 +214,7 @@ def events(request):
         Favorite.objects.filter(user=user).values_list("event_id", flat=True)
     )
     for event in events:
-        event.is_favorite = event.id in favorite_event_ids
+        event.is_favorite = event.pk in favorite_event_ids
 
     categories = Category.objects.filter(is_active=True)
     venues = Venue.objects.all()
@@ -616,7 +616,7 @@ def comprar_ticket(request, event_id):
         event.check_and_update_agotado()
 
         messages.success(request, f"¡Compra exitosa! Tu código de ticket es: {ticket_code}")
-        return redirect('satisfaction_survey', ticket_id=ticket.id)
+        return redirect('satisfaction_survey', ticket_id=ticket.pk)
     return render(request, 'app/ticket_compra.html', {
         'event': event,
         'event_id': event_id,

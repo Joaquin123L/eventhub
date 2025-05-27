@@ -40,7 +40,7 @@ class SatisfactionSurveyE2ETest(BaseE2ETest):
     def test_user_can_view_survey_form(self):
         """El usuario ve todos los campos de la encuesta"""
         self.login_user("attendee", "pass123")
-        url = self._survey_url(self.ticket.id)
+        url = self._survey_url(self.ticket.pk)
 
         self.page.goto(url, wait_until='networkidle')
         self.page.wait_for_selector("h5:has-text('Encuesta de Satisfacción')", timeout=5000)
@@ -58,7 +58,7 @@ class SatisfactionSurveyE2ETest(BaseE2ETest):
     def test_user_can_submit_survey_and_redirect(self):
         """El usuario completa la encuesta y es redirigido a /events/"""
         self.login_user("attendee", "pass123")
-        url = self._survey_url(self.ticket.id)
+        url = self._survey_url(self.ticket.pk)
         target = f"{self.live_server_url}{reverse('events')}"
 
         self.page.goto(url, wait_until='networkidle')
@@ -86,7 +86,7 @@ class SatisfactionSurveyE2ETest(BaseE2ETest):
     def test_error_shown_on_invalid_submission(self):
         """Si no completa los selects, aparece mensaje de error y sigue en la misma URL"""
         self.login_user("attendee", "pass123")
-        url = self._survey_url(self.ticket.id)
+        url = self._survey_url(self.ticket.pk)
 
         self.page.goto(url, wait_until='networkidle')
         self.page.wait_for_selector("form", timeout=5000)
@@ -103,7 +103,7 @@ class SatisfactionSurveyE2ETest(BaseE2ETest):
     def test_skip_survey_button_redirects(self):
         """El enlace 'Omitir encuesta' lleva a /events/ sin crear encuesta"""
         self.login_user("attendee", "pass123")
-        url = self._survey_url(self.ticket.id)
+        url = self._survey_url(self.ticket.pk)
         target = f"{self.live_server_url}{reverse('events')}"
 
         self.page.goto(url, wait_until='networkidle')
@@ -117,7 +117,7 @@ class SatisfactionSurveyE2ETest(BaseE2ETest):
     def test_cannot_access_after_submission(self):
         """Tras enviar, volver a la encuesta redirige a /events/"""
         self.login_user("attendee", "pass123")
-        url = self._survey_url(self.ticket.id)
+        url = self._survey_url(self.ticket.pk)
         target = f"{self.live_server_url}{reverse('events')}"
 
         self.page.goto(url, wait_until='networkidle')
