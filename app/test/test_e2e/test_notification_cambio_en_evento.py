@@ -8,8 +8,10 @@ from app.models import User, Event, Category, Venue, Ticket, Notification, Notif
 from app.test.test_e2e.base import BaseE2ETest
 
 
-class EventNotificationE2ETest(BaseE2ETest):
-    """Pruebas E2E para notificaciones automáticas al cambiar eventos"""
+class BaseEventNotificationTest(BaseE2ETest):
+    """
+    Configuración-> usuarios, evento, venue, categoría y ticket inicial.
+    """
 
     def setUp(self):
         super().setUp()
@@ -76,28 +78,34 @@ class EventNotificationE2ETest(BaseE2ETest):
             event=self.event,
             type='general'
         )
-    print("paso la creacion")
+
+
+class TestEventDateChangeNotification(BaseEventNotificationTest):
+    """
+    Pruebas relacionadas con notificaciones automáticas al cambiar la fecha del evento.
+    - Se crea notificación con mensaje detallado sobre el cambio de fecha.
+    - Solo los usuarios con tickets reciben la notificación.
+    """
 
     def test_notification_on_date_change(self):
         """Verifica que se envía notificación automática al cambiar la fecha del evento"""
         
+        old_scheduled_at = self.event.scheduled_at
+        new_scheduled_at = old_scheduled_at + timedelta(days=5)
+
         # Login como organizador
         self.login_user(self.organizer.username, "password123")
         
         # Ir al formulario de edición del evento
-        self.page.goto(f"{self.live_server_url}/events/{self.event.id}/edit/")
+        self.page.goto(f"{self.live_server_url}/events/{self.event.pk}/edit/")
 
         # Verificar que estamos en la página correcta
         header = self.page.locator("h1")
         expect(header).to_have_text("Editar evento")
         expect(header).to_be_visible()
         
-        # Cambiar la fecha del evento (agregar 5 días)
-        new_date = (self.event.scheduled_at + timedelta(days=5)).date()
-        self.page.fill("input[name='date']", new_date.strftime("%Y-%m-%d"))
-       
-        # Mantener la misma hora
-        current_time = self.event.scheduled_at.time()
+        self.page.fill("input[name='date']", new_scheduled_at.date().strftime("%Y-%m-%d"))
+        current_time = old_scheduled_at.time()
         self.page.fill("input[name='time']", current_time.strftime("%H:%M"))
 
         # Enviar el formulario
@@ -108,23 +116,19 @@ class EventNotificationE2ETest(BaseE2ETest):
 
         # Verificar que se redirige a la lista de eventos
         self.page.wait_for_url(f"{self.live_server_url}/events/")
-        
-       
-        # Verificar que se creó la notificación en la base de datos
-        notifications = Notification.objects.filter(
-            title="Cambio en evento",
-            event=self.event
-        )
+        #Esto devuelve un queryset
+        notifications = Notification.objects.filter(title="Cambio en evento", event=self.event)
         self.assertEqual(notifications.count(), 1)
         
-        notification = notifications.first()
+        notification = notifications.get()
         self.assertEqual(notification.priority, "HIGH")
         self.assertIn("Se modificó la fecha/hora o el lugar del evento", notification.message) 
    
         # Verificar que solo el usuario con ticket (asociado al evento) recibió la notificación
         notification_users = NotificationUser.objects.filter(notification=notification)
         self.assertEqual(notification_users.count(), 1)
-        self.assertEqual(notification_users.first().user, self.user_with_ticket)
+        notification_user = notification_users.get()
+        self.assertEqual(notification_user.user, self.user_with_ticket)
 
         # Verificar que el usuario sin ticket NO recibió la notificación
         user_without_ticket_notifications = NotificationUser.objects.filter(
@@ -133,49 +137,67 @@ class EventNotificationE2ETest(BaseE2ETest):
         )
         self.assertEqual(user_without_ticket_notifications.count(), 0)
 
+
+class TestEventVenueChangeNotification(BaseEventNotificationTest):
+    """
+    Pruebas relacionadas con notificaciones automáticas al cambiar el lugar del evento.
+    - Se crea notificación con mensaje detallado sobre el cambio de lugar.
+    - Solo los usuarios con tickets reciben la notificación.
+    """
+
     def test_notification_on_venue_change(self):
         """Verifica que se envía notificación automática al cambiar el lugar del evento"""
         
-        # Login como organizador
+        old_venue = self.event.venue
+        new_venue = self.new_venue
+
         self.login_user(self.organizer.username, "password123")
         
         # Ir al formulario de edición del evento
-        self.page.goto(f"{self.live_server_url}/events/{self.event.id}/edit/")
+        self.page.goto(f"{self.live_server_url}/events/{self.event.pk}/edit/")
         
         # Cambiar el venue del evento
-        self.page.select_option("select[name='venue']", str(self.new_venue.id))
+        self.page.select_option("select[name='venue']", str(self.new_venue.pk))
         
         # Enviar el formulario
         self.page.locator("button:has-text('Guardar Cambios')").click()
         
         # Verificar redirección
         self.page.wait_for_url(f"{self.live_server_url}/events/*")
-        
-        # Verificar que se creó la notificación
-        notifications = Notification.objects.filter(
-            title="Cambio en evento",
-            event=self.event
-        )
+
+        notifications = Notification.objects.filter(title="Cambio en evento", event=self.event)
         self.assertEqual(notifications.count(), 1)
         
-        # Verificar que el usuario con ticket recibió la notificación
-        notification_users = NotificationUser.objects.filter(
-            notification=notifications.first(),
-            user=self.user_with_ticket
-        )
+        notification = notifications.get()
+        self.assertIsNotNone(notification)
+        self.assertIn("Se han realizado cambios en el evento", notification.message)
+
+        expected_venue_text = f"Lugar: de {old_venue.name if old_venue else 'sin lugar'} a {new_venue.name}"
+        self.assertIn(expected_venue_text, notification.message)
+
+        notification_users = NotificationUser.objects.filter(notification=notification, user=self.user_with_ticket)
         self.assertEqual(notification_users.count(), 1)
+
+
+class TestEventNotificationUIVisibility(BaseEventNotificationTest):
+    """
+    Pruebas relacionadas con la visibilidad de notificaciones en la interfaz de usuario.
+    - El usuario con ticket debe ver el mensaje correcto tras un cambio en el evento.
+    """
 
     def test_user_can_see_notification_in_ui(self):
         """Verifica que el usuario con ticket puede ver la notificación en la interfaz"""
+        
         self.context.clear_cookies()
         
         # Como organizador
         self.login_user(self.organizer.username, "password123")
-        self.page.goto(f"{self.live_server_url}/events/{self.event.id}/edit/")
-        
-        # Cambiar fecha
-        new_date = (self.event.scheduled_at + timedelta(days=5)).date()
-        self.page.fill("input[name='date']", new_date.strftime("%Y-%m-%d"))
+        self.page.goto(f"{self.live_server_url}/events/{self.event.pk}/edit/")
+
+        old_scheduled_at = self.event.scheduled_at
+        new_scheduled_at = old_scheduled_at + timedelta(days=5)
+
+        self.page.fill("input[name='date']", new_scheduled_at.strftime("%Y-%m-%d"))
         self.page.locator("button:has-text('Guardar Cambios')").click()
         
         # Nueva sesión
@@ -188,9 +210,8 @@ class EventNotificationE2ETest(BaseE2ETest):
         
         # ir a la vista de notificaciones
         self.page.goto(f"{self.live_server_url}/notifications/visualizacion")
-        
-        # Ver contenido
-        print(self.page.content())
-        
-        # Verificar que se ve la notificación
-        expect(self.page.locator("body")).to_contain_text("Se modificó la fecha/hora o el lugar del evento.")
+
+        expect(self.page.locator("body")).to_contain_text("Se han realizado cambios en el evento")
+
+        expected_date_text = f"Fecha/Hora: de {old_scheduled_at.strftime('%d/%m/%Y %H:%M')} a {new_scheduled_at.strftime('%d/%m/%Y %H:%M')}"
+        expect(self.page.locator("body")).to_contain_text(expected_date_text)

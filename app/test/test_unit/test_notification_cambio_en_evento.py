@@ -4,22 +4,30 @@ from django.utils import timezone
 from datetime import datetime
 
 
-class NotificationModelUnitTest(TestCase):
+class BaseTestSetup(TestCase):
+    """
+    Configuración base para pruebas que comparten usuarios y evento.
+    """
     def setUp(self):
+        # Usuarios y evento básico para todos los tests
         self.user1 = User.objects.create_user(username="usuario1", password="pass123")
         self.user2 = User.objects.create_user(username="usuario2", password="pass123")
 
         self.event = Event.objects.create(
             title="Evento Test",
             description="Evento de prueba",
-            scheduled_at = timezone.make_aware(datetime(2025, 6, 1, 10, 0, 0)),
-
+            scheduled_at=timezone.make_aware(datetime(2025, 6, 1, 10, 0, 0)),
             organizer=self.user1,
         )
 
+
+class TestNotificationForEventDateChange(BaseTestSetup):
+    """
+    Pruebas relacionadas con notificaciones por cambio de fecha del evento.
+    """
+
     def test_create_notification_for_event_date_change(self):
-        """Test que verifica la creación de notificación al cambiar fecha del evento"""
-        # Crear notificación para cambio de fecha
+        # Crea notificación por cambio de fecha del evento
         success, errors = Notification.new(
             title="Cambio de fecha del evento",
             message=f"La fecha del evento '{self.event.title}' ha sido modificada",
@@ -39,19 +47,23 @@ class NotificationModelUnitTest(TestCase):
         self.assertIn(self.user1, notification.users.all())
         self.assertIn(self.user2, notification.users.all())
 
+
+class TestNotificationForEventLocationChange(BaseTestSetup):
+    """
+    Pruebas relacionadas con notificaciones por cambio de ubicación del evento.
+    """
+
     def test_create_notification_for_event_location_change(self):
-        """Test que verifica la creación de notificación al cambiar ubicación del evento"""
+        # Crea notificación por cambio de ubicación del evento
         new_location = "Nueva Ubicación"
-        
-        # Crear notificación para cambio de ubicación
+
         success, errors = Notification.new(
             title="Cambio de ubicación del evento",
             message=f"La ubicación del evento '{self.event.title}' ha sido cambiada a: {new_location}",
-            priority="HIGH", 
+            priority="HIGH",
             users=[self.user1, self.user2],
             event=self.event
         )
-        
         self.assertTrue(success)
         self.assertIsNone(errors)
         
@@ -63,9 +75,13 @@ class NotificationModelUnitTest(TestCase):
         self.assertEqual(notification.users.count(), 2)
 
 
-    def test_crear_notificacion_para_multiples_usuarios(self):
-        """Test unitario: Notification.new() asigna usuarios correctamente"""
+class TestNotificationMultipleUsersAssignment(BaseTestSetup):
+    """
+    Pruebas relacionadas con asignación de múltiples usuarios a notificaciones.
+    """
 
+    def test_crear_notificacion_para_multiples_usuarios(self):
+        # Verifica que se puedan asignar múltiples usuarios a una notificación
         success, errors = Notification.new(
             title="Prueba",
             message="Mensaje de prueba",
@@ -78,13 +94,13 @@ class NotificationModelUnitTest(TestCase):
         self.assertIsNone(errors)
 
         notificacion = Notification.objects.last()
-        self.assertIsNotNone(notificacion)  # Asegura que no es None
-        self.assertEqual(notificacion.title, "Prueba")
-        self.assertEqual(notificacion.message, "Mensaje de prueba")
-        self.assertEqual(notificacion.priority, "HIGH")
-        self.assertEqual(notificacion.event, self.event)
-        self.assertEqual(notificacion.users.count(), 2)
-        self.assertIn(self.user1, notificacion.users.all())
-        self.assertIn(self.user2, notificacion.users.all())
-
- 
+        if notificacion is not None:
+            self.assertEqual(notificacion.title, "Prueba")
+            self.assertEqual(notificacion.message, "Mensaje de prueba")
+            self.assertEqual(notificacion.priority, "HIGH")
+            self.assertEqual(notificacion.event, self.event)
+            self.assertEqual(notificacion.users.count(), 2)
+            self.assertIn(self.user1, notificacion.users.all())
+            self.assertIn(self.user2, notificacion.users.all())
+        else:
+            self.fail("La notificación no debería ser None")
