@@ -160,8 +160,20 @@ def event_form(request, id=None):
                 hubo_cambio_fecha_lugar = old_scheduled_at != scheduled_at or old_venue_id != new_venue_id
                 if hubo_cambio_fecha_lugar:
                     usuarios = User.objects.filter(tickets__event=event).distinct()
+                    cambios = []
+                    if old_scheduled_at != scheduled_at:
+                        cambios.append(
+                            f"Fecha/Hora: de {old_scheduled_at.strftime('%d/%m/%Y %H:%M')} a {scheduled_at.strftime('%d/%m/%Y %H:%M')}"
+                        )
+                    if old_venue_id != new_venue_id:
+                        old_venue = Venue.objects.get(pk=old_venue_id) if old_venue_id else None
+                        cambios.append(
+                            f"Lugar: de {old_venue.name if old_venue else 'sin lugar'} a {venue.name}"
+                        )
+                    
+                    detalles_cambios = "\n".join(cambios)
                     titulo = "Cambio en evento"
-                    mensaje = "Se modificó la fecha/hora o el lugar del evento."
+                    mensaje = f"Se han realizado cambios en el evento {event.title}: \n\n{detalles_cambios}"
                     prioridad = "HIGH"
                     Notification.new(titulo, mensaje, prioridad, usuarios, event)  
         if success:
@@ -175,6 +187,7 @@ def event_form(request, id=None):
             "scheduled_at": scheduled_at,
             "category": category,
             "venue": venue,
+            "capacity":capacity,
         }
         
         categories = Category.objects.filter(is_active=True)
