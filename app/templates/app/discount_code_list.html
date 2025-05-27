@@ -1,0 +1,296 @@
+{% extends "base.html" %}
+
+{% block title %}Códigos de Descuento{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Códigos de Descuento</h1>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createDiscountModal">
+            <i class="bi bi-plus-lg"></i> Nuevo Código
+        </button>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            {% if forloop.last %}
+                <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+                </div>
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>Código</th>
+                    <th>Evento</th>
+                    <th>Descuento</th>
+                    <th>Válido Desde</th>
+                    <th>Válido Hasta</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for discount in discount_codes %}
+                    <tr>
+                        <td>
+                            <strong>{{ discount.code }}</strong>
+                        </td>
+                        <td>{{ discount.event.title }}</td>
+                        <td>
+                            <span class="badge bg-success">{{ discount.discount_percentage }}%</span>
+                        </td>
+                        <td>{{ discount.valid_from|date:"d M Y, H:i" }}</td>
+                        <td>{{ discount.valid_until|date:"d M Y, H:i" }}</td>
+                        <td>
+                            {% if discount.is_valid %}
+                                <span class="badge bg-success">Activo</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Inactivo</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="hstack gap-1">
+                                <!-- Botón Editar -->
+                                <button class="btn btn-sm btn-outline-secondary"
+                                        aria-label="Editar"
+                                        title="Editar"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#editDiscountModal"
+                                        data-discount-id="{{ discount.id }}"
+                                        data-discount-code="{{ discount.code }}"
+                                        data-discount-percentage="{{ discount.discount_percentage }}"
+                                        data-discount-event="{{ discount.event.id }}"
+                                        data-discount-valid-from="{{ discount.valid_from|date:'Y-m-d\TH:i' }}"
+                                        data-discount-valid-until="{{ discount.valid_until|date:'Y-m-d\TH:i' }}"
+                                        data-discount-active="{{ discount.active|yesno:'true,false' }}">
+                                    <i class="bi bi-pencil" aria-hidden="true"></i>
+                                </button>
+
+                                <!-- Botón Activar/Desactivar -->
+                                <button class="btn btn-sm btn-outline-{% if discount.active %}warning{% else %}success{% endif %} toggle-active-btn"
+                                        title="{% if discount.active %}Desactivar{% else %}Activar{% endif %}"
+                                        data-discount-id="{{ discount.id }}"
+                                        data-active="{{ discount.active|yesno:'true,false' }}">
+                                    <i class="bi bi-{% if discount.active %}pause{% else %}play{% endif %}" aria-hidden="true"></i>
+                                </button>
+
+                                <!-- Botón Eliminar -->
+                                <form action="{% url 'discount_code_delete' discount.id %}" method="POST" class="d-inline">
+                                    {% csrf_token %}
+                                    <button class="btn btn-sm btn-outline-danger"
+                                            title="Eliminar"
+                                            type="submit"
+                                            aria-label="Eliminar"
+                                            onclick="return confirm('¿Estás seguro de eliminar el código {{ discount.code }}?')">
+                                        <i class="bi bi-trash" aria-hidden="true"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4">
+                            <div class="text-muted">
+                                <i class="bi bi-percent fs-1 d-block mb-2"></i>
+                                No hay códigos de descuento creados
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Crear Código de Descuento -->
+<div class="modal fade" id="createDiscountModal" tabindex="-1" aria-labelledby="createDiscountModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <form method="POST" action="{% url 'discount_code_create' %}" id="createDiscountForm">
+            {% csrf_token %}
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createDiscountModalLabel">Crear Código de Descuento</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="createCode" class="form-label">Código de Descuento</label>
+                                <input type="text" class="form-control" name="code" id="createCode" required maxlength="50" placeholder="Ej: DESCUENTO2024">
+                                <div class="form-text">Mínimo 3 caracteres</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="createPercentage" class="form-label">Porcentaje de Descuento (%)</label>
+                                <input type="number" class="form-control" name="discount_percentage" id="createPercentage" required min="0" max="100" step="0.01" placeholder="0.00">
+                                <div class="form-text">Entre 0 y 100</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="createEvent" class="form-label">Evento</label>
+                        <select class="form-select" name="event" id="createEvent" required>
+                            <option value="">Seleccionar evento...</option>
+                            {% for event in user_events %}
+                                <option value="{{ event.id }}">{{ event.title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="createValidFrom" class="form-label">Válido Desde</label>
+                                <input type="datetime-local" class="form-control" name="valid_from" id="createValidFrom" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="createValidUntil" class="form-label">Válido Hasta</label>
+                                <input type="datetime-local" class="form-control" name="valid_until" id="createValidUntil" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="active" id="createActive" checked>
+                        <label class="form-check-label" for="createActive">Activo</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Crear Código</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Editar Código de Descuento -->
+<div class="modal fade" id="editDiscountModal" tabindex="-1" aria-labelledby="editDiscountModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <form method="POST" id="editDiscountForm">
+            {% csrf_token %}
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editDiscountModalLabel">Editar Código de Descuento</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editCode" class="form-label">Código de Descuento</label>
+                                <input type="text" class="form-control" name="code" id="editCode" required maxlength="50">
+                                <div class="form-text">Mínimo 3 caracteres</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editPercentage" class="form-label">Porcentaje de Descuento (%)</label>
+                                <input type="number" class="form-control" name="discount_percentage" id="editPercentage" required min="0" max="100" step="0.01">
+                                <div class="form-text">Entre 0 y 100</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editEvent" class="form-label">Evento</label>
+                        <select class="form-select" name="event" id="editEvent" required>
+                            {% for event in user_events %}
+                                <option value="{{ event.id }}">{{ event.title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editValidFrom" class="form-label">Válido Desde</label>
+                                <input type="datetime-local" class="form-control" name="valid_from" id="editValidFrom" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editValidUntil" class="form-label">Válido Hasta</label>
+                                <input type="datetime-local" class="form-control" name="valid_until" id="editValidUntil" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="active" id="editActive">
+                        <label class="form-check-label" for="editActive">Activo</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Manejar modal de edición
+    const editModal = document.getElementById('editDiscountModal');
+    editModal.addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget;
+        const discountId = button.getAttribute('data-discount-id');
+        const code = button.getAttribute('data-discount-code');
+        const percentage = button.getAttribute('data-discount-percentage');
+        const eventId = button.getAttribute('data-discount-event');
+        const validFrom = button.getAttribute('data-discount-valid-from');
+        const validUntil = button.getAttribute('data-discount-valid-until');
+        const active = button.getAttribute('data-discount-active') === 'true';
+
+        const form = document.getElementById('editDiscountForm');
+        form.action = `/discount-codes/${discountId}/update/`;
+
+        document.getElementById('editCode').value = code;
+        document.getElementById('editPercentage').value = percentage;
+        document.getElementById('editEvent').value = eventId;
+        document.getElementById('editValidFrom').value = validFrom;
+        document.getElementById('editValidUntil').value = validUntil;
+        document.getElementById('editActive').checked = active;
+    });
+
+    // Manejar toggle de estado activo
+    document.querySelectorAll('.toggle-active-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const discountId = this.getAttribute('data-discount-id');
+            
+            fetch(`/discount-codes/${discountId}/toggle-active/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al cambiar el estado del código');
+            });
+        });
+    });
+});
+</script>
+{% endblock %}
