@@ -164,7 +164,7 @@ class EventModelTest(TestCase):
 
 
     def test_event_activo_default(self):
-        event = Event.objects.create(title="Test Event", capacity=10, scheduled_at=self.future_date, status="Activo", organizer=self.organizer)
+        event = Event.objects.create(title="Test Event", capacity=10, scheduled_at=self.future_date, organizer=self.organizer)
         self.assertEqual(event.status, "Activo")
 
     def test_evento_finalizado_si_fecha_pasada(self):
@@ -243,8 +243,7 @@ class EventModelTest(TestCase):
         self.assertEqual(event.status, "Agotado")
 
         ticket1.delete()
-        # response = self.client.post(reverse('ticket_delete', args=[event.pk, ticket2.pk]))
-
+        
         event.check_and_update_agotado()
 
         self.assertEqual(event.status, "Activo")
