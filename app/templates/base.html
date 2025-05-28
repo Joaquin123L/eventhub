@@ -75,6 +75,9 @@
                             </li>
                             {% if user_is_organizer %}
                                 <li class="nav-item">
+                                    {% navbar_link 'discount_code_list' 'Codigos de Descuento' %}
+                                </li>
+                                <li class="nav-item">
                                     {% navbar_link 'notification' 'Notificaciones' %}
                                 </li>
                             {% else %}
