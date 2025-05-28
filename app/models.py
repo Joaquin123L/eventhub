@@ -1,8 +1,8 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from datetime import datetime
-from django.utils import timezone
 from django.db.models import Sum
+from django.utils import timezone
 
 class User(AbstractUser):
     is_organizer = models.BooleanField(default=False)
@@ -49,6 +49,20 @@ class Event(models.Model):
     capacity = models.IntegerField(default=0, blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="Activo")
 
+    @property
+    def countdown(self):
+        now = timezone.now()
+        if self.scheduled_at > now and self.status not in ["Cancelado", "Finalizado"]:
+            return self.scheduled_at - now
+        return None
+    
+    @property
+    def es_pasado(self):
+        return self.scheduled_at < timezone.now()
+
+    def is_organizer(self, user):
+        return self.organizer == user
+
     def check_and_update_agotado(self):
         total = self.tickets.aggregate(total=Sum('quantity'))['total'] or 0 # type: ignore
         total = int(total) if total is not None else 0
@@ -84,6 +98,9 @@ class Event(models.Model):
 
         if description == "":
             errors["description"] = "Por favor ingrese una descripcion"
+        
+        if scheduled_at < timezone.now():
+            errors["scheduled_at"] = "La fecha y hora del evento deben ser posteriores a la actual"
 
         if capacity is not None and capacity <= 0:
             errors["capacity"] = "La capacidad debe ser mayor a 0"
@@ -114,6 +131,16 @@ class Event(models.Model):
     def update(self, title, description, scheduled_at, organizer, category=None, venue=None, capacity=None):
         fecha_cambiada = scheduled_at and scheduled_at != self.scheduled_at
 
+        # Usar los valores actuales si no se pasan nuevos
+        new_title = title or self.title
+        new_description = description or self.description
+        new_scheduled_at = scheduled_at or self.scheduled_at
+        
+        errors = Event.validate(new_title, new_description, new_scheduled_at)
+
+        if len(errors.keys()) > 0:
+            return False, errors
+        
         self.title = title or self.title
         self.description = description or self.description
         self.scheduled_at = scheduled_at or self.scheduled_at
@@ -127,6 +154,8 @@ class Event(models.Model):
 
         self.save()
         self.check_and_update_status()
+
+        return True, None
 
 class Category(models.Model):
     name =models.CharField(max_length=100)
@@ -615,3 +644,21 @@ class NotificationUser(models.Model):
 
     class Meta:
         unique_together = ('user', 'notification')
+
+class Favorite(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="favorites")
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name="favorites")
+
+    class Meta:
+        unique_together = ('user', 'event')
+
+class SatisfactionSurvey(models.Model):
+    ticket = models.OneToOneField(Ticket, on_delete=models.CASCADE)
+
+    satisfaction_level = models.IntegerField(choices=[(1, 'Muy insatisfecho'), (2, 'Insatisfecho'), (3, 'Neutral'), (4, 'Satisfecho'), (5, 'Muy satisfecho')])
+    ease_of_search = models.IntegerField(choices=[(1, 'Muy difícil'), (2, 'Difícil'), (3, 'Neutral'), (4, 'Fácil'), (5, 'Muy fácil')])
+    payment_experience = models.IntegerField(choices=[(1, 'Muy malo'), (2, 'Malo'), (3, 'Aceptable'), (4, 'Bueno'), (5, 'Excelente')])
+    received_ticket = models.BooleanField()
+    would_recommend = models.IntegerField(choices=[(1, 'Definitivamente no'), (2, 'Probablemente no'), (3, 'No estoy seguro/a'), (4, 'Probablemente sí'), (5, 'Definitivamente sí')])
+
+    additional_comments = models.TextField(blank=True)

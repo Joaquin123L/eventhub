@@ -50,6 +50,24 @@
                 <option value="desc" {% if order == "desc" %}selected{% endif %}>Descendente</option>
             </select>
         </div>
+        {% if not user_is_organizer %}
+            <div class="col-md-4">
+                <div class="form-check mt-4">
+                    <input class="form-check-input" type="checkbox" name="favorites_only" id="favorites_only" {% if favorites_only %}checked{% endif %}>
+                    <label class="form-check-label" for="favorites_only">
+                        Solo favoritos
+                    </label>
+                </div>
+            </div>
+        {% endif %}
+        {% if user_is_organizer %}
+            <div class="form-check mt-4">
+                <input class="form-check-input" type="checkbox" name="ver_pasados" id="ver_pasados" {% if ver_pasados %}checked{% endif %}>
+                <label class="form-check-label" for="ver_pasados">
+                    Ver eventos pasados
+                </label>
+            </div>
+        {% endif %}
     </form>
 
     <table class="table">
@@ -79,6 +97,17 @@
                             <a href="{% url 'event_detail' event.id %}" class="btn btn-sm btn-outline-primary">
                                 <i class="bi bi-eye"></i>
                             </a>
+                            {% if not user_is_organizer %}
+                            <a href="{% url 'toggle_favorite' event.id %}"
+                               class="btn btn-sm favorite-btn {% if event.is_favorite %}btn-danger{% else %}btn-outline-danger{% endif %}"
+                               data-event-id="{{ event.id }}">
+                                {% if event.is_favorite %}
+                                    <i class="bi bi-heart-fill"></i>
+                                {% else %}
+                                    <i class="bi bi-heart"></i>
+                                {% endif %}
+                            </a>
+                            {% endif %}
                             {% if user_is_organizer %}
                                 <a href="{% url 'event_edit' event.id %}" class="btn btn-sm btn-outline-secondary">
                                     <i class="bi bi-pencil"></i>
@@ -113,7 +142,7 @@
 
 <script>
     const form = document.getElementById("filterForm");
-    form.querySelectorAll("select").forEach(select => {
+    form.querySelectorAll("select, input[type='checkbox']").forEach(select => {
         select.addEventListener("change", () => {
             console.log("Filtro cambiado, enviando formulario...");
             form.submit();

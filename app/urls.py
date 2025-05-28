@@ -13,6 +13,7 @@ urlpatterns = [
     path("events/<int:id>/edit/", views.event_form, name="event_edit"),
     path("events/<int:id>/", views.event_detail, name="event_detail"),
     path("events/<int:id>/delete/", views.event_delete, name="event_delete"),
+    path("events/<int:event_id>/toggle_favorite/", views.toggle_favorite, name="toggle_favorite"),
     path('categorias/', views.categorias, name='categorias'),
     path('categorias/crear/', views.category_form, name='category_form'),
     path('categorias/<int:id>/editar/', views.edit_category, name='category_edit'),
@@ -50,13 +51,12 @@ urlpatterns = [
     path('notifications/mark_all_read/', views.mark_all_notifications_read, name='mark_all_read'),
     path('notifications/mark_read/<int:id>/', views.mark_notification_read, name='mark_notification_read'),
     path('event/<int:pk>/cancel/', views.event_cancel, name='event_cancel'),
-   
+    path('satisfaction_survey/<int:ticket_id>/', views.satisfaction_survey, name='satisfaction_survey'),
     path('validate-discount-code/', views.validate_discount_code, name='validate_discount_code'),
     path('discount-codes/', views.discount_code_list, name='discount_code_list'),
     path('discount-codes/create/', views.discount_code_create, name='discount_code_create'),
     path('discount-codes/<int:discount_id>/update/', views.discount_code_update, name='discount_code_update'),
     path('discount-codes/<int:discount_id>/delete/', views.discount_code_delete, name='discount_code_delete'),
     path('discount-codes/<int:discount_id>/toggle-active/', views.discount_code_toggle_active, name='discount_code_toggle_active'),
-
 
 ]

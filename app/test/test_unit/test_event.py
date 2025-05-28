@@ -159,5 +159,28 @@ class EventModelTest(TestCase):
         with self.assertRaises(Event.DoesNotExist):
             Event.objects.get(title="Evento inválido")
 
-    
 
+    def test_event_validation_countdown(self):
+        """Test que verifica que si tengo un evento viejo el metodo countdown devuelve None"""
+        event = Event.objects.create(
+            title="Evento viejo",
+            description="Descripción del evento viejo",
+            scheduled_at=timezone.now() - datetime.timedelta(days=1),
+            organizer=self.organizer,
+        )
+        self.assertIsNone(event.countdown)
+
+        """Test que verifica que si tengo un evento futuro el metodo countdown devuelve un timedelta"""
+        event.scheduled_at = timezone.now() + datetime.timedelta(days=1)
+        event.save()
+        self.assertIsInstance(event.countdown, datetime.timedelta)
+
+    def test_event_es_pasado_con_fecha_pasada(self):
+        """Test que verifica que si tengo un evento pasado el metodo es_pasado devuelve True"""
+        event = Event.objects.create(
+            title="Evento pasado",
+            description="Descripción del evento pasado",
+            scheduled_at=timezone.now() - datetime.timedelta(days=1),
+            organizer=self.organizer,
+        )
+        self.assertTrue(event.es_pasado)
