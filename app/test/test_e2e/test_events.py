@@ -290,6 +290,26 @@ class EventPermissionsTest(EventBaseTest):
         countdown = self.page.locator("#countdown")
         expect(countdown).to_have_count(0)
 
+    def test_filter_past_events_visible_only_for_organizer(self):
+        """Test que verifica que el filtro de eventos pasados solo es visible para organizadores"""
+
+    # Iniciar sesión como organizador
+        self.login_user("organizador", "password123")
+        self.page.goto(f"{self.live_server_url}/events/")
+
+    # Verificar que el checkbox 'Ver eventos pasados' es visible
+        past_events_checkbox = self.page.get_by_label("Ver eventos pasados")
+        expect(past_events_checkbox).to_be_visible()
+
+    # Cerrar sesión
+        self.page.get_by_role("button", name="Salir").click()
+
+    # Iniciar sesión como usuario regular
+        self.login_user("usuario", "password123")
+        self.page.goto(f"{self.live_server_url}/events/")
+
+    # Verificar que el checkbox 'Ver eventos pasados' no esté presente
+        past_events_checkbox = self.page.locator("label", has_text="Ver eventos pasados")
 
 class EventCRUDTest(EventBaseTest):
     """Tests relacionados con las operaciones CRUD (Crear, Leer, Actualizar, Eliminar) de eventos"""
