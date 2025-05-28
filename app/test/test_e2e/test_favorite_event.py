@@ -34,13 +34,13 @@ class EventFavoritesE2ETest(BaseE2ETest):
         self.login_user("attendee", "pass123")
 
         self.page.goto(f"{self.live_server_url}/events/")
-        favorite_button = self.page.locator(f"a.favorite-btn[data-event-id='{self.event.id}']")
+        favorite_button = self.page.locator(f"a.favorite-btn[data-event-id='{self.event.pk}']")
         favorite_button.wait_for(timeout=3000)
 
         favorite_button.click()
 
         self.page.wait_for_timeout(500)
-        updated_button = self.page.locator(f"a.favorite-btn.btn-danger[data-event-id='{self.event.id}']")
+        updated_button = self.page.locator(f"a.favorite-btn.btn-danger[data-event-id='{self.event.pk}']")
         assert updated_button.is_visible(), "Event should appear as favorite (btn-danger not found)"
 
     def test_user_can_unmark_event_as_favorite_from_list(self):
@@ -48,15 +48,15 @@ class EventFavoritesE2ETest(BaseE2ETest):
         self.login_user("attendee", "pass123")
 
         self.page.goto(f"{self.live_server_url}/events/")
-        favorite_button = self.page.locator(f"a.favorite-btn[data-event-id='{self.event.id}']")
+        favorite_button = self.page.locator(f"a.favorite-btn[data-event-id='{self.event.pk}']")
         favorite_button.click()
         self.page.wait_for_timeout(500)
 
-        updated_button = self.page.locator(f"a.favorite-btn.btn-danger[data-event-id='{self.event.id}']")
+        updated_button = self.page.locator(f"a.favorite-btn.btn-danger[data-event-id='{self.event.pk}']")
         updated_button.click()
         self.page.wait_for_timeout(500)
 
-        unmarked_button = self.page.locator(f"a.favorite-btn.btn-outline-danger[data-event-id='{self.event.id}']")
+        unmarked_button = self.page.locator(f"a.favorite-btn.btn-outline-danger[data-event-id='{self.event.pk}']")
         assert unmarked_button.is_visible(), "Event should be unfavorited (btn-outline-danger not visible)"
 
     def test_favorite_button_state_persists_after_reload(self):
@@ -64,11 +64,11 @@ class EventFavoritesE2ETest(BaseE2ETest):
         self.login_user("attendee", "pass123")
 
         self.page.goto(f"{self.live_server_url}/events/")
-        self.page.locator(f"a.favorite-btn[data-event-id='{self.event.id}']").click()
+        self.page.locator(f"a.favorite-btn[data-event-id='{self.event.pk}']").click()
         self.page.wait_for_timeout(300)
 
         self.page.reload()
-        updated_button = self.page.locator(f"a.favorite-btn.btn-danger[data-event-id='{self.event.id}']")
+        updated_button = self.page.locator(f"a.favorite-btn.btn-danger[data-event-id='{self.event.pk}']")
         assert updated_button.is_visible(), "Favorite state should persist after reload"
 
     def test_only_non_organizers_see_favorite_button(self):
@@ -76,7 +76,7 @@ class EventFavoritesE2ETest(BaseE2ETest):
         self.login_user("organizer", "pass123")
         self.page.goto(f"{self.live_server_url}/events/")
 
-        favorite_btn = self.page.locator(f"a.favorite-btn[data-event-id='{self.event.id}']")
+        favorite_btn = self.page.locator(f"a.favorite-btn[data-event-id='{self.event.pk}']")
         assert not favorite_btn.is_visible(), "Organizer should not see the favorite button"
 
 

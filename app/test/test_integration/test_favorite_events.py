@@ -32,7 +32,7 @@ class ToggleFavoriteIntegrationTest(TestCase):
         self.client = Client()
         self.client.login(username="usuario", password="password123")
 
-        self.toggle_url = reverse("toggle_favorite", args=[self.event.id])
+        self.toggle_url = reverse("toggle_favorite", args=[self.event.pk])
 
     def test_add_event_to_favorite(self):
         """Verifica que se pueda agregar un evento a favoritos"""
@@ -74,7 +74,7 @@ class ToggleFavoriteIntegrationTest(TestCase):
         self.client.login(username="otro", password="password123")
         self.assertFalse(Favorite.objects.filter(user=otro_user, event=self.event).exists())
 
-        self.client.get(reverse("toggle_favorite", args=[self.event.id]))
+        self.client.get(reverse("toggle_favorite", args=[self.event.pk]))
         self.assertTrue(Favorite.objects.filter(user=otro_user, event=self.event).exists())
 
     def test_redirects_to_default_if_no_referer(self):
