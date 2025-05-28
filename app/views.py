@@ -158,6 +158,7 @@ def discount_code_list(request, event_id=None):
         'discount_codes': discount_codes,
         'user_events': user_events,
         'event': locals().get('event'),
+        'user_is_organizer': request.user.is_organizer
     }
     return render(request, 'app/discount_code_list.html', context)
 
