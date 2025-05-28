@@ -617,7 +617,14 @@ def comprar_ticket(request, event_id):
                 'event': event,
                 'event_id': event_id
             })
-
+                # Verificar si el evento está cancelado
+        if event.status == "Cancelado":
+            error = "No se pueden comprar entradas para un evento cancelado."
+            return render(request, 'app/ticket_compra.html', {
+                'event': event,
+                'event_id': event_id,
+                'error': error
+            })
         # verificar si hay cupo, si no hay cupo se muestra un error que diga no quedan entradas
         if event.capacity is not None:
             tickets_vendidos = Ticket.objects.filter(event=event).aggregate(total=Sum('quantity'))['total'] or 0
