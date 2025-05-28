@@ -48,9 +48,9 @@
                                 <div class="col-md-6">
                                     <label for="date" class="form-label">Fecha</label>
                                     <input
-                                        class="form-control"
+                                        class="form-control {% if errors.scheduled_at %}is-invalid{% endif %}"
                                         id="date"
-                                        required=""
+                                        required
                                         type="date"
                                         value="{{ event.scheduled_at|date:'Y-m-d'}}"
                                         name="date" />
@@ -58,14 +58,22 @@
                                 <div class="col-md-6">
                                     <label for="time" class="form-label">Hora</label>
                                     <input
-                                        class="form-control"
+                                        class="form-control {% if errors.scheduled_at %}is-invalid{% endif %}"
                                         id="time"
-                                        required=""
+                                        required
                                         type="time"
-                                        value="{% if event.scheduled_at %}{{ event.scheduled_at|date:'H:i' }}{% endif %}"
+                                        value="{{ event.scheduled_at|date:'H:i' }}"
                                         name="time" />
                                 </div>
+                                {% if errors.scheduled_at %}
+                                <div class="col-12">
+                                    <div class="invalid-feedback d-block">
+                                        {{ errors.scheduled_at }}
+                                    </div>
+                                </div>
+                                {% endif %}
                             </div>
+
                             <div>
                                 <label for="category" class="form-label">Categoría</label>
                                 <select class="form-select" id="category" name="category" required>
@@ -112,6 +120,11 @@
                                 <button type="submit" class="btn btn-primary">
                                     <i class="bi bi-check-circle me-2"></i> {% if event.id %}Guardar Cambios{% else %}Crear Evento{% endif %}
                                 </button>
+
+                                <p class="text-muted small fst-italic mt-2">
+                                * Los usuarios serán notificados automáticamente si se modifica la fecha, hora o lugar del evento.
+                                </p>
+
                             </div>
                         </div>
                     </form>

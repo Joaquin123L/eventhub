@@ -165,10 +165,61 @@ def event_form(request, id=None):
         if id is None:
             success, errors = Event.new(title, description, scheduled_at, request.user, category, venue,capacity)
         else:
-            event = get_object_or_404(Event, pk=id)
-            event.update(title, description, scheduled_at, request.user, category, venue,capacity)
 
-        return redirect("events")
+            event = get_object_or_404(Event, pk=id)
+            # Guardamos los valores anteriores
+            old_scheduled_at = event.scheduled_at
+            old_venue_id = event.venue.id if event.venue else None            # Validamos antes de actualizar
+
+            success, errors = event.update(title, description, scheduled_at, request.user, category, venue, capacity)
+            if success:
+                new_venue_id = getattr(venue, 'id', None)
+                hubo_cambio_fecha_lugar = old_scheduled_at != scheduled_at or old_venue_id != new_venue_id
+                if hubo_cambio_fecha_lugar:
+                    usuarios = User.objects.filter(tickets__event=event).distinct()
+                    cambios = []
+                    if old_scheduled_at != scheduled_at:
+                        cambios.append(
+                            f"Fecha/Hora: de {old_scheduled_at.strftime('%d/%m/%Y %H:%M')} a {scheduled_at.strftime('%d/%m/%Y %H:%M')}"
+                        )
+                    if old_venue_id != new_venue_id:
+                        old_venue = Venue.objects.get(pk=old_venue_id) if old_venue_id else None
+                        cambios.append(
+                            f"Lugar: de {old_venue.name if old_venue else 'sin lugar'} a {venue.name}"
+                        )
+                    
+                    detalles_cambios = "\n".join(cambios)
+                    titulo = "Cambio en evento"
+                    mensaje = f"Se han realizado cambios en el evento {event.title}: \n\n{detalles_cambios}"
+                    prioridad = "HIGH"
+                    Notification.new(titulo, mensaje, prioridad, usuarios, event)  
+        if success:
+            return redirect("events")
+        
+        # Si hubo errores
+        event_data = {
+            "id": id,
+            "title": title,
+            "description": description,
+            "scheduled_at": scheduled_at,
+            "category": category,
+            "venue": venue,
+            "capacity":capacity,
+        }
+        
+        categories = Category.objects.filter(is_active=True)
+        venues = Venue.objects.all()
+        return render(
+            request,
+            "app/event_form.html",
+            {
+                "event": event_data,
+                "errors": errors,
+                "user_is_organizer": user.is_organizer,
+                "categories": categories,
+                "venues": venues,
+            },
+        )
 
     event = {}
     if id is not None:

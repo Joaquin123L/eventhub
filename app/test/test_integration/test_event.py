@@ -262,7 +262,7 @@ class EventFormSubmissionTest(BaseEventTestCase):
         event_data = {
         "title": "Nuevo Evento",
         "description": "Descripción del nuevo evento",
-        "date": "2025-05-01",
+        "date": "2025-09-01",
         "time": "14:30",
         "category": self.category.pk,
         "venue": self.venue.pk,
@@ -281,7 +281,7 @@ class EventFormSubmissionTest(BaseEventTestCase):
         evento = Event.objects.get(title="Nuevo Evento")
         self.assertEqual(evento.description, "Descripción del nuevo evento")
         self.assertEqual(evento.scheduled_at.year, 2025)
-        self.assertEqual(evento.scheduled_at.month, 5)
+        self.assertEqual(evento.scheduled_at.month, 9)
         self.assertEqual(evento.scheduled_at.day, 1)
         self.assertEqual(evento.scheduled_at.hour, 14)
         self.assertEqual(evento.scheduled_at.minute, 30)
