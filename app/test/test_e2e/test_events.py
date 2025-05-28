@@ -1,7 +1,7 @@
 import datetime
 import re
 import unittest
-
+from datetime import timedelta
 from django.utils import timezone
 from playwright.sync_api import expect
 
@@ -45,7 +45,7 @@ class EventBaseTest(BaseE2ETest):
             organizer=self.organizer,
             category=self.category,  # Añadir
             venue=self.venue,        # Añadir
-            capacity=50, 
+            capacity=50,
         )
 
         # Evento 2
@@ -64,10 +64,10 @@ class EventBaseTest(BaseE2ETest):
 
         headers = self.page.locator("table thead th")
         expect(headers).to_have_count(7)
-    
+
         # Verificar cada encabezado en el orden correcto
         expect(headers.nth(0)).to_have_text("Título")
-        expect(headers.nth(1)).to_have_text("Descripción") 
+        expect(headers.nth(1)).to_have_text("Descripción")
         expect(headers.nth(2)).to_have_text("Fecha")
         expect(headers.nth(3)).to_have_text("Categoría")
         expect(headers.nth(4)).to_have_text("Locación")
@@ -88,52 +88,52 @@ class EventBaseTest(BaseE2ETest):
         expect(rows.nth(1).locator("td").nth(0)).to_have_text("Evento de prueba 2")
         expect(rows.nth(1).locator("td").nth(1)).to_have_text("Descripción del evento 2")
         expect(rows.nth(1).locator("td").nth(2)).to_have_text("15 mar 2026, 14:30")
-    
+
     @unittest.skip("Método auxiliar, no es un test")
     def _table_has_correct_actions(self, user_type):
         """Método auxiliar para verificar que las acciones son correctas según el tipo de usuario"""
         row0 = self.page.locator("table tbody tr").nth(0)
-    
+
         # El botón "Ver Detalle" ahora es solo un ícono (bi-eye)
         detail_button = row0.locator("a").filter(has=self.page.locator("i.bi-eye")).first
         expect(detail_button).to_be_visible()
         expect(detail_button).to_have_attribute("href", f"/events/{self.event1.pk}/")
-    
+
         if user_type == "organizador":
             # Botón de editar (ícono bi-pencil)
             edit_button = row0.locator("a").filter(has=self.page.locator("i.bi-pencil")).first
             expect(edit_button).to_be_visible()
             expect(edit_button).to_have_attribute("href", f"/events/{self.event1.pk}/edit/")
-        
+
             # Botón de tickets (ícono bi-ticket)
             tickets_button = row0.locator("a").filter(has=self.page.locator("i.bi-ticket")).first
             expect(tickets_button).to_be_visible()
             expect(tickets_button).to_have_attribute("href", f"/events/{self.event1.pk}/tickets/")
-        
+
             # Formulario de eliminar
             delete_form = row0.locator("form").filter(has_text="").first
             expect(delete_form).to_have_attribute("action", f"/events/{self.event1.pk}/delete/")
             expect(delete_form).to_have_attribute("method", "POST")
-        
+
             # Botón eliminar (ícono bi-trash)
             delete_button = delete_form.locator("button").filter(has=self.page.locator("i.bi-trash"))
             expect(delete_button).to_be_visible()
-        
+
             # Formulario de cancelar
             cancel_form = row0.locator("form").nth(1)  # Segundo formulario
             expect(cancel_form).to_have_attribute("action", f"/events/{self.event1.pk}/cancel/")
             expect(cancel_form).to_have_attribute("method", "POST")
-        
+
             # Botón cancelar (ícono bi-x-circle)
             cancel_button = cancel_form.locator("button").filter(has=self.page.locator("i.bi-x-circle"))
             expect(cancel_button).to_be_visible()
-        
+
         else:
             # Para usuarios regulares, solo debe existir el botón de ver detalle
             edit_button = row0.locator("a").filter(has=self.page.locator("i.bi-pencil"))
             tickets_button = row0.locator("a").filter(has=self.page.locator("i.bi-ticket"))
             delete_forms = row0.locator("form")
-        
+
             expect(edit_button).to_have_count(0)
             expect(tickets_button).to_have_count(0)
             expect(delete_forms).to_have_count(0)
@@ -436,3 +436,76 @@ class EventCRUDTest(EventBaseTest):
 
         # Verificar que el evento eliminado ya no aparece en la tabla
         expect(self.page.get_by_text("Evento de prueba 1")).to_have_count(0)
+
+class EventStateFlowE2ETest(EventBaseTest):
+
+    def test_complete_event_state_flow(self):
+        # 1. Verificar estado inicial (Activo)
+        self.page.goto(f"{self.live_server_url}/event/{self.event1.pk}/")
+        status_element = self.page.get_by_text("Estado: Activo")
+        self.assertTrue(self.event1.status,'Activo')
+        print("Paso 1: Evento creado con estado Activo - OK")
+
+        # 2. Comprar entradas hasta agotar capacidad (debe cambiar a Agotado)
+        self.event1.capacity = 2
+        self.event1.save()
+
+        self.login_user("usuario", "password123")
+        self.page.goto(f"{self.live_server_url}/ticket_compra/{self.event1.pk}")
+
+        # Llenar datos del formulario
+        self.page.fill("input[name='card_name']", "Juan Pérez")
+        self.page.fill("input[name='card_number']", "4242424242424242")
+        self.page.fill("input[name='card_expiry']", "12/30")
+        self.page.fill("input[name='card_cvv']", "123")
+        self.page.check("input[name='accept_terms']")
+        self.page.select_option("select[name='type']", "general")
+        self.page.fill("#quantity", "1")
+
+        # Enviar formulario
+        self.page.click("#submit-btn")
+        # Verificar que el estado sigue siendo Activo (aún hay capacidad)
+        self.assertTrue(self.event1.status,'Activo')
+        print("Paso 2: El evento sigue en estado Activo - OK")
+
+        self.page.goto(f"{self.live_server_url}/ticket_compra/{self.event1.pk}")
+
+        # Llenar datos del formulario
+        self.page.fill("input[name='card_name']", "Juan Pérez")
+        self.page.fill("input[name='card_number']", "4242424242424242")
+        self.page.fill("input[name='card_expiry']", "12/30")
+        self.page.fill("input[name='card_cvv']", "123")
+        self.page.check("input[name='accept_terms']")
+        self.page.select_option("select[name='type']", "general")
+        self.page.fill("#quantity", "1")
+
+        self.page.click("#submit-btn")
+        self.assertTrue(self.event1.status,'Agotado')
+        print("Paso 3: El evento Se Agoto - OK")
+
+        # 3. Eliminar una entrada (debe volver a Activo)
+        # Iniciar sesión como organizador
+        self.login_user("organizador", "password123")
+
+        # Navegar a la lista de tickets
+        self.page.goto(f"{self.live_server_url}/tickets/{self.event1.pk}")
+
+        # Hacer clic en el botón de eliminar del primer ticket
+        self.page.query_selector_all("form[action*='ticket_delete'] button[type='submit']")
+        self.assertTrue(self.event1.status,'Activo')
+        print("Paso 4: El evento volvio al estado Activo - OK")
+
+        # 4. Cancelar el evento (debe cambiar a Cancelado)
+        # Navegar a la página de cancelación
+        self.page.goto(f"{self.live_server_url}/events/")
+
+        cancel_buttons = self.page.query_selector_all(
+            "form[action*='event_cancel'] button:not([disabled])"
+        )
+        for btn in cancel_buttons:
+            btn.click()
+            self.page.wait_for_load_state("networkidle")
+
+        # Verificar que el estado cambió a Cancelado
+        self.assertTrue(self.event1.status,'Cancelado')
+        print("Paso 4: El evento se cancelo - OK")

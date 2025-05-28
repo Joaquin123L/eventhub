@@ -2,8 +2,9 @@ import datetime
 
 from django.test import TestCase
 from django.utils import timezone
-
-from app.models import Event, User
+from datetime import timedelta
+from django.urls import reverse
+from app.models import Event, User, Ticket
 
 
 class EventModelTest(TestCase):
@@ -14,6 +15,8 @@ class EventModelTest(TestCase):
             password="password123",
             is_organizer=True,
         )
+        self.future_date = timezone.now() + timedelta(days=5)
+        self.past_date = timezone.now() - timedelta(days=5)
 
     def test_event_creation(self):
         event = Event.objects.create(
@@ -141,7 +144,7 @@ class EventModelTest(TestCase):
         self.assertEqual(updated_event.description, new_description)
         self.assertEqual(updated_event.scheduled_at, original_scheduled_at)
 
-    
+
     def test_event_creation_fails_with_negative_capacity(self):
         scheduled_at = timezone.now() + datetime.timedelta(days=1)
 
@@ -150,7 +153,7 @@ class EventModelTest(TestCase):
             description="Capacidad negativa",
             scheduled_at=scheduled_at,
             organizer=self.organizer,
-            capacity=-10  # 
+            capacity=-10  #
         )
         self.assertFalse(is_valid)
         self.assertIn("capacity", errors) # type: ignore
@@ -158,6 +161,92 @@ class EventModelTest(TestCase):
         # El test pasa si al buscar el evento salta DoesNotExist:
         with self.assertRaises(Event.DoesNotExist):
             Event.objects.get(title="Evento inválido")
+
+
+    def test_event_activo_default(self):
+        event = Event.objects.create(title="Test Event", capacity=10, scheduled_at=self.future_date, organizer=self.organizer)
+        self.assertEqual(event.status, "Activo")
+
+    def test_evento_finalizado_si_fecha_pasada(self):
+        event = Event.objects.create(
+            title="Evento Pasado",
+            capacity=10,
+            scheduled_at=self.past_date,
+            organizer=self.organizer
+        )
+        event.check_and_update_status()
+        self.assertEqual(event.status, "Finalizado")
+
+    def test_evento_cancelado_no_cambia_estado(self):
+        event = Event.objects.create(
+            title="Evento Cancelable",
+            capacity=10,
+            scheduled_at=self.future_date,
+            organizer=self.organizer
+        )
+
+
+        event.status = "Cancelado"
+        event.save()
+
+
+        event.check_and_update_status()
+
+
+        self.assertEqual(event.status, "Cancelado")
+    def test_evento_agotado_si_llega_a_capacidad(self):
+        event = Event.objects.create(
+            title="Evento con Tickets",
+            capacity=5,
+            scheduled_at=self.future_date,
+            organizer=self.organizer
+        )
+
+        Ticket.objects.create(
+            event=event,
+            quantity=3,
+            ticket_code="A1",
+            user=self.organizer
+        )
+        Ticket.objects.create(
+            event=event,
+            quantity=2,
+            ticket_code="A2",
+            user=self.organizer
+        )
+
+        event.check_and_update_agotado()
+        self.assertEqual(event.status, "Agotado")
+
+    def test_evento_vuelve_a_activo_si_se_elimina_ticket_y_hay_capacidad(self):
+        event = Event.objects.create(
+            title="Evento dinámico",
+            capacity=5,
+            scheduled_at=self.future_date,
+            organizer=self.organizer
+        )
+
+        ticket1 = Ticket.objects.create(
+            event=event,
+            quantity=3,
+            ticket_code="B1",
+            user=self.organizer
+        )
+        ticket2 = Ticket.objects.create(
+            event=event,
+            quantity=2,
+            ticket_code="B2",
+            user=self.organizer
+        )
+
+        event.check_and_update_agotado()
+        self.assertEqual(event.status, "Agotado")
+
+        ticket1.delete()
+        
+        event.check_and_update_agotado()
+
+        self.assertEqual(event.status, "Activo")
 
 
     def test_event_validation_countdown(self):

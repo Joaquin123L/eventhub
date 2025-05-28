@@ -76,6 +76,7 @@ def home(request):
 @login_required
 def event_detail(request, id):
     event = get_object_or_404(Event, pk=id)
+    event.check_and_update_status()
     countdown = event.countdown
     tickets_vendidos = Ticket.objects.filter(event=event).aggregate(total=Sum('quantity'))['total'] or 0
 
@@ -718,8 +719,8 @@ def ticket_delete(request, event_id, ticket_id):
     event = ticket.event
 
     if request.method == 'POST':
-        event.check_and_update_agotado()
         ticket.delete()
+        event.check_and_update_agotado()
         messages.success(request, "Ticket eliminado correctamente")
         return redirect('tickets', event_id=event_id)
 

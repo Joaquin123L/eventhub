@@ -1,6 +1,6 @@
 import datetime
 import time
-
+from datetime import timedelta
 from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -93,7 +93,7 @@ class EventsListViewTest(BaseEventTestCase):
         # Verificar que redirecciona al login
         self.assertEqual(response.status_code, 302)
         self.assertTrue(response['Location'].startswith("/accounts/login/"))
-    
+
     def test_events_view_excludes_past_events(self):
         """Test que verifica que la vista events no muestra eventos pasados"""
         # Crear un evento pasado
@@ -151,7 +151,7 @@ class EventDetailViewTest(BaseEventTestCase):
 
         # Verificar respuesta
         self.assertEqual(response.status_code, 404)
-    
+
     def test_event_detail_with_capacity_and_tickets(self):
     #Test que verifica porcentaje de ocupación con capacidad definida y tickets vendidos
         event = Event.objects.create(
@@ -246,7 +246,7 @@ class EventFormViewTest(BaseEventTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "app/event_form.html")
         self.assertEqual(response.context["event"].id, self.event1.pk)
-    
+
 
 
 
@@ -266,7 +266,7 @@ class EventFormSubmissionTest(BaseEventTestCase):
         "time": "14:30",
         "category": self.category.pk,
         "venue": self.venue.pk,
-        "capacity": "100", 
+        "capacity": "100",
     }
 
         # Hacer petición POST a la vista event_form
@@ -296,10 +296,10 @@ class EventFormSubmissionTest(BaseEventTestCase):
 
         # Datos para actualizar el evento
         updated_data = {
-        "id": self.event1.pk, 
+        "id": self.event1.pk,
         "title": "Evento 1 Actualizado",
         "description": "Nueva descripción actualizada",
-        "date": "2025-06-15",  
+        "date": "2025-06-15",
         "time": "16:45",
         "category": self.category.pk,
         "venue": self.venue.pk,
@@ -412,3 +412,62 @@ class EventDeleteViewTest(BaseEventTestCase):
         self.assertTrue(Event.objects.filter(pk=self.event1.pk).exists())
 
 
+class EventStatusIntegrationTest(BaseEventTestCase):
+
+    def test_evento_se_cancela(self):
+        self.client.login(username="organizador", password="password123")
+        response = self.client.get(reverse('event_cancel', kwargs={'pk': self.event1.pk}))
+        self.assertEqual(response.status_code, 302)
+
+        self.event1.refresh_from_db()
+        self.assertEqual(self.event1.status, "Cancelado")
+
+    def test_evento_finalizado_automaticamente(self):
+
+        self.assertEqual(self.event1.status, "Activo")
+        self.client.login(username="organizador", password="password123")
+        # Cambiar la fecha al pasado
+        self.event1.scheduled_at = timezone.now() - timedelta(days=3)
+        self.event1.save()
+
+        # Acceder a la vista del evento (que debe llamar a check_and_update_status)
+        response = self.client.get(reverse("event_detail", args=[self.event1.pk]))
+        self.assertEqual(response.status_code, 200)
+
+        # Refrescar desde la base de datos y verificar que cambió a "Finalizado"
+        self.event1.refresh_from_db()
+        self.assertEqual(self.event1.status, "Finalizado")
+
+    def test_evento_agotado_y_vuelve_a_activo(self):
+        self.event1.capacity=5
+        self.client.login(username="organizador", password="password123")
+        ticket1 = Ticket.objects.create(
+            event=self.event1,
+            user=self.organizer,
+            quantity=3,
+            ticket_code="AG1"
+        )
+        ticket2 = Ticket.objects.create(
+            event=self.event1,
+            user=self.organizer,
+            quantity=2,
+            ticket_code="AG2"
+        )
+
+        # Simula agotado
+        self.event1.check_and_update_agotado()
+        self.event1.refresh_from_db()
+        self.assertEqual(self.event1.status, "Agotado")
+
+        # Borrar un ticket vía vista
+        response = self.client.post(
+            reverse('ticket_delete', kwargs={'event_id': self.event1.pk, 'ticket_id': ticket2.pk})
+        )
+        self.assertEqual(response.status_code, 302)
+        # self.event1.check_and_update_agotado()
+        # Chequea que vuelva a activo
+        self.assertFalse(Ticket.objects.filter(pk=ticket2.pk).exists())
+        self.assertEqual(ticket2.event, self.event1)
+
+        self.event1.refresh_from_db()
+        self.assertEqual(self.event1.status, "Activo")
