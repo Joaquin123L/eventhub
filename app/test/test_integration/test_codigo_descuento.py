@@ -59,15 +59,15 @@ class TicketPurchaseWithDiscountIntegrationTest(TestCase):
         """Compra exitosa con código de descuento válido"""
         self.client.login(username='comprador_test', password='password123')
 
-        post_data = self.get_post_data('TICKET001', str(self.discount_code.id))
+        post_data = self.get_post_data('TICKET001', str(self.discount_code.pk))
         response = self.client.post(
-            reverse('ticket_compra', kwargs={'event_id': self.event.id}),
+            reverse('ticket_compra', kwargs={'event_id': self.event.pk}),
             data=post_data
         )
 
         self.assertEqual(response.status_code, 302)
         self.assertRedirects(response, reverse('satisfaction_survey', args=[1]))
-        
+
         ticket = Ticket.objects.get(ticket_code='TICKET001')
         self.assertEqual(ticket.user, self.buyer)
         self.assertEqual(ticket.event, self.event)
@@ -91,9 +91,9 @@ class TicketPurchaseWithDiscountIntegrationTest(TestCase):
             active=True
         )
 
-        post_data = self.get_post_data('TICKET002', str(expired_code.id))
+        post_data = self.get_post_data('TICKET002', str(expired_code.pk))
         response = self.client.post(
-            reverse('ticket_compra', kwargs={'event_id': self.event.id}),
+            reverse('ticket_compra', kwargs={'event_id': self.event.pk}),
             data=post_data
         )
 
