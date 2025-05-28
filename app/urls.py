@@ -51,4 +51,5 @@ urlpatterns = [
     path('notifications/mark_all_read/', views.mark_all_notifications_read, name='mark_all_read'),
     path('notifications/mark_read/<int:id>/', views.mark_notification_read, name='mark_notification_read'),
     path('event/<int:pk>/cancel/', views.event_cancel, name='event_cancel'),
+    path('satisfaction_survey/<int:ticket_id>/', views.satisfaction_survey, name='satisfaction_survey'),
 ]

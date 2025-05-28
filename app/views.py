@@ -5,9 +5,9 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.db.models import Count, Exists, OuterRef
-from django.http import HttpResponseForbidden, HttpResponseRedirect
+from django.http import HttpResponseForbidden, HttpResponseRedirect, HttpResponseBadRequest
 from .models import Event, User, Category, Comment, Venue, Ticket, Rating, RefoundRequest, RefoundReason, RefoundStatus, \
-    Notification, NotificationUser, Favorite
+    Notification, NotificationUser, Favorite, SatisfactionSurvey
 from django.contrib import messages
 import re
 import random
@@ -76,7 +76,17 @@ def home(request):
 @login_required
 def event_detail(request, id):
     event = get_object_or_404(Event, pk=id)
+    countdown = event.countdown
     tickets_vendidos = Ticket.objects.filter(event=event).aggregate(total=Sum('quantity'))['total'] or 0
+
+    if countdown is not None:
+        total_seconds = int(countdown.total_seconds())
+        days = total_seconds // (24 * 3600)
+        hours = (total_seconds % (24 * 3600)) // 3600
+        minutes = (total_seconds % 3600) // 60
+    else:
+        days = hours = minutes = 0
+
 
     # Porcentaje de ocupación
     if event.capacity is None or event.capacity == 0:
@@ -88,9 +98,10 @@ def event_detail(request, id):
     tiene_ticket = Ticket.objects.filter(user=request.user, event=event).exists()
     promedio_rating = Rating.objects.filter(event=event).aggregate(Avg('rating'))['rating__avg'] or 0
     porcentaje_rating = round(promedio_rating * 20, 2)  # Escala de 0 a 100
-    tiene_resena = Rating.objects.filter(user=request.user, event=event).exists() 
+    tiene_resena = Rating.objects.filter(user=request.user, event=event).exists()
 
-    return render(request, "app/event_detail.html", {"event": event, "todos_los_comentarios": todos_los_comentarios, "ratings": ratings, "user_is_organizer": request.user.is_organizer, "porcentaje_ocupado": porcentaje_ocupado, "tickets_vendidos": tickets_vendidos, "tiene_ticket": tiene_ticket, "promedio_rating": promedio_rating, "porcentaje_rating": porcentaje_rating, "tiene_resena": tiene_resena,}) 
+    return render(request, "app/event_detail.html", {"event": event, "todos_los_comentarios": todos_los_comentarios, "ratings": ratings, "user_is_organizer": request.user.is_organizer, "porcentaje_ocupado": porcentaje_ocupado, "tickets_vendidos": tickets_vendidos, "tiene_ticket": tiene_ticket, "promedio_rating": promedio_rating, "porcentaje_rating": porcentaje_rating, "tiene_resena": tiene_resena,"countdown": countdown,  "countdown_days": days,
+        "countdown_hours": hours,"countdown_minutes": minutes,})
 
 
 
@@ -136,6 +147,7 @@ def event_form(request, id=None):
         category = get_object_or_404(Category, pk=category_id)
         venue = get_object_or_404(Venue, pk=venue_id)
         capacity = int(request.POST.get("capacity") or 0)
+        #si la capacity es mayor a la capacidad del venue, se muestra un error
         if venue.capacity is not None and capacity > venue.capacity:
             categories = Category.objects.filter(is_active=True)
             venues = Venue.objects.all()
@@ -145,17 +157,69 @@ def event_form(request, id=None):
                 "app/event_form.html",
                 {
                     "error": error,
+                    "categories": categories,
+                    "venues": venues,
                 }
             )
 
         if id is None:
             success, errors = Event.new(title, description, scheduled_at, request.user, category, venue,capacity)
-        #si la capacity es mayor a la capacidad del venue, se muestra un error
         else:
-            event = get_object_or_404(Event, pk=id)
-            event.update(title, description, scheduled_at, request.user, category, venue,capacity)
 
-        return redirect("events")
+            event = get_object_or_404(Event, pk=id)
+            # Guardamos los valores anteriores
+            old_scheduled_at = event.scheduled_at
+            old_venue_id = event.venue.id if event.venue else None            # Validamos antes de actualizar
+
+            success, errors = event.update(title, description, scheduled_at, request.user, category, venue, capacity)
+            if success:
+                new_venue_id = getattr(venue, 'id', None)
+                hubo_cambio_fecha_lugar = old_scheduled_at != scheduled_at or old_venue_id != new_venue_id
+                if hubo_cambio_fecha_lugar:
+                    usuarios = User.objects.filter(tickets__event=event).distinct()
+                    cambios = []
+                    if old_scheduled_at != scheduled_at:
+                        cambios.append(
+                            f"Fecha/Hora: de {old_scheduled_at.strftime('%d/%m/%Y %H:%M')} a {scheduled_at.strftime('%d/%m/%Y %H:%M')}"
+                        )
+                    if old_venue_id != new_venue_id:
+                        old_venue = Venue.objects.get(pk=old_venue_id) if old_venue_id else None
+                        cambios.append(
+                            f"Lugar: de {old_venue.name if old_venue else 'sin lugar'} a {venue.name}"
+                        )
+                    
+                    detalles_cambios = "\n".join(cambios)
+                    titulo = "Cambio en evento"
+                    mensaje = f"Se han realizado cambios en el evento {event.title}: \n\n{detalles_cambios}"
+                    prioridad = "HIGH"
+                    Notification.new(titulo, mensaje, prioridad, usuarios, event)  
+        if success:
+            return redirect("events")
+        
+        # Si hubo errores
+        event_data = {
+            "id": id,
+            "title": title,
+            "description": description,
+            "scheduled_at": scheduled_at,
+            "category": category,
+            "venue": venue,
+            "capacity":capacity,
+        }
+        
+        categories = Category.objects.filter(is_active=True)
+        venues = Venue.objects.all()
+        return render(
+            request,
+            "app/event_form.html",
+            {
+                "event": event_data,
+                "errors": errors,
+                "user_is_organizer": user.is_organizer,
+                "categories": categories,
+                "venues": venues,
+            },
+        )
 
     event = {}
     if id is not None:
@@ -177,9 +241,13 @@ def events(request):
     category_id = request.GET.get("category")
     venue_id = request.GET.get("venue")
     favorites_only = request.GET.get("favorites_only") == "on"
-
+    ver_pasados = request.GET.get("ver_pasados") == "on"
+    
+    
     if user.is_organizer:
         events = Event.objects.filter(organizer=user)
+        if not ver_pasados:
+            events = events.filter(scheduled_at__gte=timezone.now()).exclude(status__in=["Cancelado", "Finalizado"])
     else:
         events = Event.objects.filter(scheduled_at__gte=timezone.now()).exclude(status__in=["Cancelado", "Finalizado"])
 
@@ -203,7 +271,7 @@ def events(request):
         Favorite.objects.filter(user=user).values_list("event_id", flat=True)
     )
     for event in events:
-        event.is_favorite = event.id in favorite_event_ids
+        event.is_favorite = event.pk in favorite_event_ids
 
     categories = Category.objects.filter(is_active=True)
     venues = Venue.objects.all()
@@ -220,6 +288,7 @@ def events(request):
             "order": order,
             "user_is_organizer": user.is_organizer,
             "favorites_only": favorites_only,
+            "ver_pasados": ver_pasados,
         },
     )
 
@@ -605,7 +674,7 @@ def comprar_ticket(request, event_id):
         event.check_and_update_agotado()
 
         messages.success(request, f"¡Compra exitosa! Tu código de ticket es: {ticket_code}")
-        return redirect('events')
+        return redirect('satisfaction_survey', ticket_id=ticket.pk)
     return render(request, 'app/ticket_compra.html', {
         'event': event,
         'event_id': event_id,
@@ -1117,3 +1186,55 @@ def toggle_favorite(request, event_id):
     referer = request.META.get('HTTP_REFERER', reverse('events'))
 
     return HttpResponseRedirect(referer)
+
+def parse_survey_data(post_data):
+    try:
+        sat_lvl   = int(post_data['satisfaction_level'])
+        ease      = int(post_data['ease_of_search'])
+        pay_exp   = int(post_data['payment_experience'])
+        received  = post_data.get('received_ticket') in ('on', 'true', '1')
+        recommend = int(post_data['would_recommend'])
+        comments  = post_data.get('additional_comments', '').strip()
+    except (KeyError, ValueError) as e:
+        raise ValueError("Datos de encuesta inválidos") from e
+
+    return {
+        'satisfaction_level': sat_lvl,
+        'ease_of_search': ease,
+        'payment_experience': pay_exp,
+        'received_ticket': received,
+        'would_recommend': recommend,
+        'additional_comments': comments,
+    }
+
+@login_required
+def satisfaction_survey(request, ticket_id):
+    ticket = get_object_or_404(Ticket, pk=ticket_id)
+
+    if SatisfactionSurvey.objects.filter(ticket=ticket).exists():
+        return redirect('events')
+
+    if request.method == 'POST':
+        try:
+            data = parse_survey_data(request.POST)
+        except ValueError:
+            return render(request, 'app/satisfaction_survey.html', {
+                'ticket': ticket,
+                'satisfaction_level_choices': SatisfactionSurvey._meta.get_field('satisfaction_level').choices,
+                'ease_of_search_choices':    SatisfactionSurvey._meta.get_field('ease_of_search').choices,
+                'payment_experience_choices':SatisfactionSurvey._meta.get_field('payment_experience').choices,
+                'would_recommend_choices':   SatisfactionSurvey._meta.get_field('would_recommend').choices,
+                'error_message': "Por favor, complete todos los campos correctamente."
+            })
+
+        SatisfactionSurvey.objects.create(ticket=ticket, **data)
+        return redirect('events')
+
+    # GET
+    return render(request, 'app/satisfaction_survey.html', {
+        'ticket': ticket,
+        'satisfaction_level_choices': SatisfactionSurvey._meta.get_field('satisfaction_level').choices,
+        'ease_of_search_choices':    SatisfactionSurvey._meta.get_field('ease_of_search').choices,
+        'payment_experience_choices':SatisfactionSurvey._meta.get_field('payment_experience').choices,
+        'would_recommend_choices':   SatisfactionSurvey._meta.get_field('would_recommend').choices,
+    })

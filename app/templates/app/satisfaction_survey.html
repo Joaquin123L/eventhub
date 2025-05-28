@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Encuesta de Satisfacción</h5>
+                    </div>
+                    <div class="card-body">
+
+                        {# — Aquí mostramos el error si existe — #}
+                        {% if error_message %}
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                {{ error_message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+                            </div>
+                        {% endif %}
+
+                        <p>Ticket: <strong>#{{ ticket.id }}</strong></p>
+                        <form method="post" novalidate>
+                            {% csrf_token %}
+
+                            <!-- Nivel de satisfacción -->
+                            <div class="mb-3">
+                                <label for="satisfaction_level" class="form-label">¿Cómo calificaría su satisfacción?</label>
+                                <select id="satisfaction_level"
+                                        name="satisfaction_level"
+                                        class="form-select"
+                                        required>
+                                    <option value="" disabled selected>Seleccione...</option>
+                                    {% for val, label in satisfaction_level_choices %}
+                                        <option value="{{ val }}">{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- Facilidad de búsqueda -->
+                            <div class="mb-3">
+                                <label for="ease_of_search" class="form-label">Facilidad de búsqueda</label>
+                                <select id="ease_of_search"
+                                        name="ease_of_search"
+                                        class="form-select"
+                                        required>
+                                    <option value="" disabled selected>Seleccione...</option>
+                                    {% for val, label in ease_of_search_choices %}
+                                        <option value="{{ val }}">{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- Experiencia de pago -->
+                            <div class="mb-3">
+                                <label for="payment_experience" class="form-label">¿Cómo fue su experiencia de pago?</label>
+                                <select id="payment_experience"
+                                        name="payment_experience"
+                                        class="form-select"
+                                        required>
+                                    <option value="" disabled selected>Seleccione...</option>
+                                    {% for val, label in payment_experience_choices %}
+                                        <option value="{{ val }}">{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- Recibió ticket -->
+                            <div class="form-check mb-3">
+                                <input class="form-check-input"
+                                       type="checkbox"
+                                       id="received_ticket"
+                                       name="received_ticket">
+                                <label class="form-check-label" for="received_ticket">
+                                    Confirmo que recibí mi ticket
+                                </label>
+                            </div>
+
+                            <!-- Recomendación -->
+                            <div class="mb-3">
+                                <label for="would_recommend" class="form-label">¿Nos recomendaría?</label>
+                                <select id="would_recommend"
+                                        name="would_recommend"
+                                        class="form-select"
+                                        required>
+                                    <option value="" disabled selected>Seleccione...</option>
+                                    {% for val, label in would_recommend_choices %}
+                                        <option value="{{ val }}">{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- Comentarios adicionales -->
+                            <div class="mb-3">
+                                <label for="additional_comments" class="form-label">Comentarios adicionales</label>
+                                <textarea id="additional_comments"
+                                          name="additional_comments"
+                                          class="form-control"
+                                          rows="4"
+                                          placeholder="Escriba aquí..."></textarea>
+                            </div>
+                            <div class="d-flex">
+                                <button type="submit" class="btn btn-primary">Enviar encuesta</button>
+                                <a href="{% url 'events' %}" class="btn btn-secondary ms-2">
+                                    Omitir encuesta
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
