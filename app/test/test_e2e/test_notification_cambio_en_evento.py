@@ -122,8 +122,7 @@ class TestEventDateChangeNotification(BaseEventNotificationTest):
         
         notification = notifications.get()
         self.assertEqual(notification.priority, "HIGH")
-        self.assertIn("Se modificó la fecha/hora o el lugar del evento", notification.message) 
-   
+        self.assertIn("Se han realizado cambios en el evento", notification.message)   
         # Verificar que solo el usuario con ticket (asociado al evento) recibió la notificación
         notification_users = NotificationUser.objects.filter(notification=notification)
         self.assertEqual(notification_users.count(), 1)
