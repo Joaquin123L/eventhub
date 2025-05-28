@@ -13,14 +13,12 @@ class ToggleFavoriteViewTest(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username='testuser', password='password')
         self.organizer = User.objects.create_user(username='organizer', password='password')
-        self.category = Category.objects.create(name='Música', description='Eventos musicales')
         self.event = Event.objects.create(
             title='Concierto',
             description='Concierto de rock',
             scheduled_at=now() + timedelta(days=3),
             organizer=self.organizer
         )
-        self.event.category = self.category
 
     def test_create_favorite_successfully(self):
         favorite = Favorite.objects.create(user=self.user, event=self.event)
