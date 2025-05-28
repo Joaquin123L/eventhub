@@ -66,8 +66,8 @@ class TicketPurchaseWithDiscountIntegrationTest(TestCase):
         )
 
         self.assertEqual(response.status_code, 302)
-        self.assertRedirects(response, reverse('events'))
-
+        self.assertRedirects(response, reverse('satisfaction_survey', args=[1]))
+        
         ticket = Ticket.objects.get(ticket_code='TICKET001')
         self.assertEqual(ticket.user, self.buyer)
         self.assertEqual(ticket.event, self.event)
