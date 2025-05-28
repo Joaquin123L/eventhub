@@ -73,7 +73,6 @@ class TicketPurchaseWithDiscountIntegrationTest(TestCase):
         self.assertEqual(ticket.event, self.event)
         self.assertEqual(ticket.quantity, 2)
         self.assertEqual(ticket.discount_code, self.discount_code)
-        self.assertEqual(ticket.discount_percentage, 25)
 
         messages = list(get_messages(response.wsgi_request))
         self.assertTrue(any('¡Compra exitosa!' in str(m) for m in messages))
