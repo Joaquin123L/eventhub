@@ -69,12 +69,14 @@
                         {% endif %}
                         <div>
                             {% if not user_is_organizer %}
-                                {% if tickets_vendidos < event.capacity %}
-                                    <a href="{% url 'ticket_compra' event.id %}" class="btn btn-outline-primary me-2">
-                                        <i class="bi bi-ticket me-1"></i>Comprar Entrada
-                                    </a>
+                                {% if event.status == "Cancelado" %}
+                                <p class="text-danger fw-bold mb-0">Evento cancelado</p>
+                                {% elif tickets_vendidos < event.capacity %}
+                                <a href="{% url 'ticket_compra' event.id %}" class="btn btn-outline-primary me-2">
+                                    <i class="bi bi-ticket me-1"></i>Comprar Entrada
+                                </a>
                                 {% else %}
-                                    <p class="text-danger fw-bold mb-0">Entradas agotadas</p>
+                                <p class="text-danger fw-bold mb-0">Entradas agotadas</p>
                                 {% endif %}
                             {% endif %}
                         </div>

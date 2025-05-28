@@ -433,15 +433,15 @@ def event_form(request, id=None):
                         cambios.append(
                             f"Lugar: de {old_venue.name if old_venue else 'sin lugar'} a {venue.name}"
                         )
-                    
+
                     detalles_cambios = "\n".join(cambios)
                     titulo = "Cambio en evento"
                     mensaje = f"Se han realizado cambios en el evento {event.title}: \n\n{detalles_cambios}"
                     prioridad = "HIGH"
-                    Notification.new(titulo, mensaje, prioridad, usuarios, event)  
+                    Notification.new(titulo, mensaje, prioridad, usuarios, event)
         if success:
             return redirect("events")
-        
+
         # Si hubo errores
         event_data = {
             "id": id,
@@ -452,7 +452,7 @@ def event_form(request, id=None):
             "venue": venue,
             "capacity":capacity,
         }
-        
+
         categories = Category.objects.filter(is_active=True)
         venues = Venue.objects.all()
         return render(
@@ -488,8 +488,8 @@ def events(request):
     venue_id = request.GET.get("venue")
     favorites_only = request.GET.get("favorites_only") == "on"
     ver_pasados = request.GET.get("ver_pasados") == "on"
-    
-    
+
+
     if user.is_organizer:
         events = Event.objects.filter(organizer=user)
         if not ver_pasados:
@@ -865,7 +865,14 @@ def comprar_ticket(request, event_id):
                 'event': event,
                 'event_id': event_id
             })
-        
+                # Verificar si el evento está cancelado
+        if event.status == "Cancelado":
+            error = "No se pueden comprar entradas para un evento cancelado."
+            return render(request, 'app/ticket_compra.html', {
+                'event': event,
+                'event_id': event_id,
+                'error': error
+            })
         # verificar si hay cupo, si no hay cupo se muestra un error que diga no quedan entradas
         if event.capacity is not None:
             tickets_vendidos = Ticket.objects.filter(event=event).aggregate(total=Sum('quantity'))['total'] or 0
@@ -995,8 +1002,8 @@ def simular_procesamiento_pago(payment_data):
     if not cvv.isdigit() or not (3 <= len(cvv) <= 4):
         return False
 
-    # Simular un 95% de probabilidad de éxito en el pago
-    return random.random() < 0.95
+    # Simular un 100% de probabilidad de éxito en el pago
+    return random.random() < 1.00
 
 @login_required
 def ticket_delete(request, event_id, ticket_id):
