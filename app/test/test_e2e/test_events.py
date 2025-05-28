@@ -391,44 +391,21 @@ class EventCRUDTest(EventBaseTest):
         # Verificar que el evento eliminado ya no aparece en la tabla
         expect(self.page.get_by_text("Evento de prueba 1")).to_have_count(0)
 
-class EventStateFlowE2ETest(BaseE2ETest):
-    def setUp(self):
-        super().setUp()
-        self.organizer = User.objects.create_user(
-            username="organizador",
-            email="organizador@example.com",
-            password="password123",
-            is_organizer=True,
-        )
-
-        self.regular_user = User.objects.create_user(
-            username="usuario",
-            email="usuario@example.com",
-            password="password123",
-            is_organizer=False,
-        )
-
-        event_date1 = timezone.make_aware(datetime.datetime(2025, 2, 10, 10, 10))
-        self.event = Event.objects.create(
-            title="Evento de prueba 1",
-            description="Descripción del evento 1",
-            scheduled_at=event_date1,
-            organizer=self.organizer,
-        )
+class EventStateFlowE2ETest(EventBaseTest):
 
     def test_complete_event_state_flow(self):
         # 1. Verificar estado inicial (Activo)
-        self.page.goto(f"{self.live_server_url}/event/{self.event.pk}/")
+        self.page.goto(f"{self.live_server_url}/event/{self.event1.pk}/")
         status_element = self.page.get_by_text("Estado: Activo")
-        self.assertTrue(self.event.status,'Activo')
+        self.assertTrue(self.event1.status,'Activo')
         print("Paso 1: Evento creado con estado Activo - OK")
 
         # 2. Comprar entradas hasta agotar capacidad (debe cambiar a Agotado)
-        self.event.capacity = 2
-        self.event.save()
+        self.event1.capacity = 2
+        self.event1.save()
 
         self.login_user("usuario", "password123")
-        self.page.goto(f"{self.live_server_url}/ticket_compra/{self.event.pk}")
+        self.page.goto(f"{self.live_server_url}/ticket_compra/{self.event1.pk}")
 
         # Llenar datos del formulario
         self.page.fill("input[name='card_name']", "Juan Pérez")
@@ -442,10 +419,10 @@ class EventStateFlowE2ETest(BaseE2ETest):
         # Enviar formulario
         self.page.click("#submit-btn")
         # Verificar que el estado sigue siendo Activo (aún hay capacidad)
-        self.assertTrue(self.event.status,'Activo')
+        self.assertTrue(self.event1.status,'Activo')
         print("Paso 2: El evento sigue en estado Activo - OK")
 
-        self.page.goto(f"{self.live_server_url}/ticket_compra/{self.event.pk}")
+        self.page.goto(f"{self.live_server_url}/ticket_compra/{self.event1.pk}")
 
         # Llenar datos del formulario
         self.page.fill("input[name='card_name']", "Juan Pérez")
@@ -457,7 +434,7 @@ class EventStateFlowE2ETest(BaseE2ETest):
         self.page.fill("#quantity", "1")
 
         self.page.click("#submit-btn")
-        self.assertTrue(self.event.status,'Agotado')
+        self.assertTrue(self.event1.status,'Agotado')
         print("Paso 3: El evento Se Agoto - OK")
 
         # 3. Eliminar una entrada (debe volver a Activo)
@@ -465,15 +442,15 @@ class EventStateFlowE2ETest(BaseE2ETest):
         self.login_user("organizador", "password123")
 
         # Navegar a la lista de tickets
-        self.page.goto(f"{self.live_server_url}/tickets/{self.event.pk}")
+        self.page.goto(f"{self.live_server_url}/tickets/{self.event1.pk}")
 
         # Hacer clic en el botón de eliminar del primer ticket
         self.page.query_selector_all("form[action*='ticket_delete'] button[type='submit']")
-        self.assertTrue(self.event.status,'Activo')
+        self.assertTrue(self.event1.status,'Activo')
         print("Paso 4: El evento volvio al estado Activo - OK")
 
         # 4. Cancelar el evento (debe cambiar a Cancelado)
-        # Navegar a la página de cancelación 
+        # Navegar a la página de cancelación
         self.page.goto(f"{self.live_server_url}/events/")
 
         cancel_buttons = self.page.query_selector_all(
@@ -484,5 +461,5 @@ class EventStateFlowE2ETest(BaseE2ETest):
             self.page.wait_for_load_state("networkidle")
 
         # Verificar que el estado cambió a Cancelado
-        self.assertTrue(self.event.status,'Cancelado')
+        self.assertTrue(self.event1.status,'Cancelado')
         print("Paso 4: El evento se cancelo - OK")

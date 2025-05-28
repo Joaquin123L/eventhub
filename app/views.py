@@ -76,6 +76,7 @@ def home(request):
 @login_required
 def event_detail(request, id):
     event = get_object_or_404(Event, pk=id)
+    event.check_and_update_status()
     tickets_vendidos = Ticket.objects.filter(event=event).aggregate(total=Sum('quantity'))['total'] or 0
 
     # Porcentaje de ocupación
@@ -88,9 +89,9 @@ def event_detail(request, id):
     tiene_ticket = Ticket.objects.filter(user=request.user, event=event).exists()
     promedio_rating = Rating.objects.filter(event=event).aggregate(Avg('rating'))['rating__avg'] or 0
     porcentaje_rating = round(promedio_rating * 20, 2)  # Escala de 0 a 100
-    tiene_resena = Rating.objects.filter(user=request.user, event=event).exists() 
+    tiene_resena = Rating.objects.filter(user=request.user, event=event).exists()
 
-    return render(request, "app/event_detail.html", {"event": event, "todos_los_comentarios": todos_los_comentarios, "ratings": ratings, "user_is_organizer": request.user.is_organizer, "porcentaje_ocupado": porcentaje_ocupado, "tickets_vendidos": tickets_vendidos, "tiene_ticket": tiene_ticket, "promedio_rating": promedio_rating, "porcentaje_rating": porcentaje_rating, "tiene_resena": tiene_resena,}) 
+    return render(request, "app/event_detail.html", {"event": event, "todos_los_comentarios": todos_los_comentarios, "ratings": ratings, "user_is_organizer": request.user.is_organizer, "porcentaje_ocupado": porcentaje_ocupado, "tickets_vendidos": tickets_vendidos, "tiene_ticket": tiene_ticket, "promedio_rating": promedio_rating, "porcentaje_rating": porcentaje_rating, "tiene_resena": tiene_resena,})
 
 
 
@@ -642,8 +643,8 @@ def ticket_delete(request, event_id, ticket_id):
     event = ticket.event
 
     if request.method == 'POST':
-        event.check_and_update_agotado()
         ticket.delete()
+        event.check_and_update_agotado()
         messages.success(request, "Ticket eliminado correctamente")
         return redirect('tickets', event_id=event_id)
 

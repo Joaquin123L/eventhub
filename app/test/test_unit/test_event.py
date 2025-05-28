@@ -171,7 +171,6 @@ class EventModelTest(TestCase):
             title="Evento Pasado",
             capacity=10,
             scheduled_at=self.past_date,
-            status="Activo",
             organizer=self.organizer
         )
         event.check_and_update_status()
@@ -182,7 +181,6 @@ class EventModelTest(TestCase):
             title="Evento Cancelable",
             capacity=10,
             scheduled_at=self.future_date,
-            status="Activo",
             organizer=self.organizer
         )
 
@@ -200,7 +198,6 @@ class EventModelTest(TestCase):
             title="Evento con Tickets",
             capacity=5,
             scheduled_at=self.future_date,
-            status="Activo",
             organizer=self.organizer
         )
 
@@ -225,7 +222,6 @@ class EventModelTest(TestCase):
             title="Evento dinámico",
             capacity=5,
             scheduled_at=self.future_date,
-            status="Activo",
             organizer=self.organizer
         )
 
@@ -245,8 +241,8 @@ class EventModelTest(TestCase):
         event.check_and_update_agotado()
         self.assertEqual(event.status, "Agotado")
 
-        response = self.client.post(reverse('ticket_delete', args=[event.pk, ticket2.pk]))
-
+        ticket1.delete()
+        # response = self.client.post(reverse('ticket_delete', args=[event.pk, ticket2.pk]))
 
         event.check_and_update_agotado()
 

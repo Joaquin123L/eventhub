@@ -59,10 +59,10 @@ class Event(models.Model):
             if self.status != "Agotado":
                 self.status = "Agotado"
                 self.save()
-            else:
-                if self.status == "Agotado":
-                    self.status = "Activo"
-                    self.save()
+        else:
+            if self.status == "Agotado":
+                self.status = "Activo"
+                self.save()
 
     def __str__(self):
         return self.title
