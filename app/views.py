@@ -702,8 +702,8 @@ def simular_procesamiento_pago(payment_data):
     if not cvv.isdigit() or not (3 <= len(cvv) <= 4):
         return False
 
-    # Simular un 95% de probabilidad de éxito en el pago
-    return random.random() < 0.95
+    # Simular un 100% de probabilidad de éxito en el pago
+    return random.random() < 1.00
 
 @login_required
 def ticket_delete(request, event_id, ticket_id):
