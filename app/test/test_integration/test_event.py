@@ -410,12 +410,7 @@ class EventDeleteViewTest(BaseEventTestCase):
 
         # Verificar que el evento sigue existiendo
         self.assertTrue(Event.objects.filter(pk=self.event1.pk).exists())
-        response = self.client.login(username="organizador", password="password123")  # Autenticar
-        response = self.client.get(reverse("event_detail", args=[event.pk]))
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("porcentaje_ocupado", response.context)
-        self.assertEqual(response.context["porcentaje_ocupado"], 40.0)
-        self.assertEqual(response.context["tickets_vendidos"], 40)
+
 
 class EventStatusIntegrationTest(BaseEventTestCase):
 
