@@ -120,11 +120,18 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                 </div>
                 <div class="modal-body">
+                    <!-- Alert para errores de validación -->
+                    <div id="createErrorAlert" class="alert alert-danger d-none" role="alert">
+                        <strong>Por favor corrige los siguientes errores:</strong>
+                        <ul id="createErrorList" class="mb-0 mt-2"></ul>
+                    </div>
+
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="createCode" class="form-label">Código de Descuento</label>
                                 <input type="text" class="form-control" name="code" id="createCode" required maxlength="50" placeholder="Ej: DESCUENTO2024">
+                                <div class="invalid-feedback"></div>
                                 <div class="form-text">Mínimo 3 caracteres</div>
                             </div>
                         </div>
@@ -132,6 +139,7 @@
                             <div class="mb-3">
                                 <label for="createPercentage" class="form-label">Porcentaje de Descuento (%)</label>
                                 <input type="number" class="form-control" name="discount_percentage" id="createPercentage" required min="0" max="100" step="0.01" placeholder="0.00">
+                                <div class="invalid-feedback"></div>
                                 <div class="form-text">Entre 0 y 100</div>
                             </div>
                         </div>
@@ -145,6 +153,7 @@
                                 <option value="{{ event.id }}">{{ event.title }}</option>
                             {% endfor %}
                         </select>
+                        <div class="invalid-feedback"></div>
                     </div>
                     
                     <div class="row">
@@ -152,12 +161,14 @@
                             <div class="mb-3">
                                 <label for="createValidFrom" class="form-label">Válido Desde</label>
                                 <input type="datetime-local" class="form-control" name="valid_from" id="createValidFrom" required>
+                                <div class="invalid-feedback"></div>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="createValidUntil" class="form-label">Válido Hasta</label>
                                 <input type="datetime-local" class="form-control" name="valid_until" id="createValidUntil" required>
+                                <div class="invalid-feedback"></div>
                             </div>
                         </div>
                     </div>
@@ -169,7 +180,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Crear Código</button>
+                    <button type="submit" class="btn btn-primary" id="createSubmitBtn">Crear Código</button>
                 </div>
             </div>
         </form>
@@ -187,11 +198,18 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                 </div>
                 <div class="modal-body">
+                    <!-- Alert para errores de validación -->
+                    <div id="editErrorAlert" class="alert alert-danger d-none" role="alert">
+                        <strong>Por favor corrige los siguientes errores:</strong>
+                        <ul id="editErrorList" class="mb-0 mt-2"></ul>
+                    </div>
+
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="editCode" class="form-label">Código de Descuento</label>
                                 <input type="text" class="form-control" name="code" id="editCode" required maxlength="50">
+                                <div class="invalid-feedback"></div>
                                 <div class="form-text">Mínimo 3 caracteres</div>
                             </div>
                         </div>
@@ -199,6 +217,7 @@
                             <div class="mb-3">
                                 <label for="editPercentage" class="form-label">Porcentaje de Descuento (%)</label>
                                 <input type="number" class="form-control" name="discount_percentage" id="editPercentage" required min="0" max="100" step="0.01">
+                                <div class="invalid-feedback"></div>
                                 <div class="form-text">Entre 0 y 100</div>
                             </div>
                         </div>
@@ -211,6 +230,7 @@
                                 <option value="{{ event.id }}">{{ event.title }}</option>
                             {% endfor %}
                         </select>
+                        <div class="invalid-feedback"></div>
                     </div>
                     
                     <div class="row">
@@ -218,12 +238,14 @@
                             <div class="mb-3">
                                 <label for="editValidFrom" class="form-label">Válido Desde</label>
                                 <input type="datetime-local" class="form-control" name="valid_from" id="editValidFrom" required>
+                                <div class="invalid-feedback"></div>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="editValidUntil" class="form-label">Válido Hasta</label>
                                 <input type="datetime-local" class="form-control" name="valid_until" id="editValidUntil" required>
+                                <div class="invalid-feedback"></div>
                             </div>
                         </div>
                     </div>
@@ -235,7 +257,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                    <button type="submit" class="btn btn-primary" id="editSubmitBtn">Guardar Cambios</button>
                 </div>
             </div>
         </form>
@@ -244,7 +266,94 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    // Manejar modal de edición
+    // Ocultar alertas al abrir los modales
+    document.getElementById('createDiscountModal').addEventListener('show.bs.modal', function () {
+        const form = document.getElementById('createDiscountForm');
+        form.reset();
+        document.getElementById('createActive').checked = true;
+        document.getElementById('createErrorAlert').classList.add('d-none');
+    });
+
+    document.getElementById('editDiscountModal').addEventListener('show.bs.modal', function () {
+        document.getElementById('editErrorAlert').classList.add('d-none');
+    });
+
+    // Validación básica al enviar el formulario crear
+    document.getElementById('createDiscountForm').addEventListener('submit', function (e) {
+        const code = document.getElementById('createCode').value.trim();
+        const percentage = parseFloat(document.getElementById('createPercentage').value);
+        const event = document.getElementById('createEvent').value;
+        const validFrom = document.getElementById('createValidFrom').value;
+        const validUntil = document.getElementById('createValidUntil').value;
+
+        let errors = [];
+
+        if (!code || code.length < 3) {
+            errors.push('El código debe tener al menos 3 caracteres.');
+        }
+        if (isNaN(percentage) || percentage < 0 || percentage > 100) {
+            errors.push('El porcentaje debe estar entre 0 y 100.');
+        }
+        if (!event) {
+            errors.push('Debe seleccionar un evento.');
+        }
+        if (!validFrom || !validUntil) {
+            errors.push('Las fechas de inicio y fin son obligatorias.');
+        } else if (new Date(validFrom) >= new Date(validUntil)) {
+            errors.push('La fecha de fin debe ser posterior a la fecha de inicio.');
+        }
+
+        if (errors.length > 0) {
+            e.preventDefault();
+            showGeneralErrors(errors, 'createErrorAlert', 'createErrorList');
+        }
+    });
+
+    // Validación básica al enviar el formulario editar
+    document.getElementById('editDiscountForm').addEventListener('submit', function (e) {
+        const code = document.getElementById('editCode').value.trim();
+        const percentage = parseFloat(document.getElementById('editPercentage').value);
+        const event = document.getElementById('editEvent').value;
+        const validFrom = document.getElementById('editValidFrom').value;
+        const validUntil = document.getElementById('editValidUntil').value;
+
+        let errors = [];
+
+        if (!code || code.length < 3) {
+            errors.push('El código debe tener al menos 3 caracteres.');
+        }
+        if (isNaN(percentage) || percentage < 0 || percentage > 100) {
+            errors.push('El porcentaje debe estar entre 0 y 100.');
+        }
+        if (!event) {
+            errors.push('Debe seleccionar un evento.');
+        }
+        if (!validFrom || !validUntil) {
+            errors.push('Las fechas de inicio y fin son obligatorias.');
+        } else if (new Date(validFrom) >= new Date(validUntil)) {
+            errors.push('La fecha de fin debe ser posterior a la fecha de inicio.');
+        }
+
+        if (errors.length > 0) {
+            e.preventDefault();
+            showGeneralErrors(errors, 'editErrorAlert', 'editErrorList');
+        }
+    });
+
+    // Función para mostrar errores generales
+    function showGeneralErrors(errors, alertId, listId) {
+        const alert = document.getElementById(alertId);
+        const list = document.getElementById(listId);
+        list.innerHTML = '';
+        errors.forEach(function (error) {
+            const li = document.createElement('li');
+            li.textContent = error;
+            list.appendChild(li);
+        });
+        alert.classList.remove('d-none');
+    }
+
+    // Manejar edición del descuento
     const editModal = document.getElementById('editDiscountModal');
     editModal.addEventListener('show.bs.modal', function (event) {
         const button = event.relatedTarget;
@@ -258,7 +367,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const form = document.getElementById('editDiscountForm');
         form.action = `/discount-codes/${discountId}/update/`;
-
         document.getElementById('editCode').value = code;
         document.getElementById('editPercentage').value = percentage;
         document.getElementById('editEvent').value = eventId;
@@ -267,11 +375,10 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('editActive').checked = active;
     });
 
-    // Manejar toggle de estado activo
+    // Manejar activación/desactivación
     document.querySelectorAll('.toggle-active-btn').forEach(button => {
-        button.addEventListener('click', function() {
+        button.addEventListener('click', function () {
             const discountId = this.getAttribute('data-discount-id');
-            
             fetch(`/discount-codes/${discountId}/toggle-active/`, {
                 method: 'POST',
                 headers: {
@@ -281,9 +388,7 @@ document.addEventListener('DOMContentLoaded', function () {
             })
             .then(response => response.json())
             .then(data => {
-                if (data.success) {
-                    location.reload();
-                }
+                if (data.success) location.reload();
             })
             .catch(error => {
                 console.error('Error:', error);
