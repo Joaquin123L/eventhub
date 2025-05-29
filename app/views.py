@@ -272,7 +272,7 @@ def events(request):
         Favorite.objects.filter(user=user).values_list("event_id", flat=True)
     )
     for event in events:
-        event.is_favorite = event.pk in favorite_event_ids
+        event.is_favorite = event.pk in favorite_event_ids # type: ignore
 
     categories = Category.objects.filter(is_active=True)
     venues = Venue.objects.all()
@@ -751,7 +751,7 @@ def update_ticket(request, ticket_id):
     if RefoundRequest.objects.filter(ticket_code=ticket.ticket_code).exists():
         messages.error(request, "No se puede editar un ticket que tiene una solicitud de reembolso.")
         return redirect('Mis_tickets')
-    
+
     #si el evento al que esta asociado el ticket tiene estado finalizado / cancelado, no se puede editar
     if ticket.event.status in ['Finalizado', 'Cancelado']:
         messages.error(request, "No se puede editar un ticket de un evento que ya no esta disponible.")
