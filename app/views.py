@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.db.models import Count, Exists, OuterRef
-from django.http import HttpResponseForbidden, HttpResponseRedirect, HttpResponseBadRequest
+from django.http import HttpResponseForbidden, HttpResponseRedirect
 from .models import Event, User, Category, Comment, Venue, Ticket, Rating, RefoundRequest, RefoundReason, RefoundStatus, \
     Notification, NotificationUser, Favorite, SatisfactionSurvey, DiscountCode
 from django.db.models import Count
@@ -19,8 +19,6 @@ from django.db.models import Sum
 from django.db.models import Avg
 from django.http import JsonResponse
 import json
-from django.views.decorators.http import require_http_methods
-from django.views.decorators.http import require_POST
 from django.utils import timezone
 from django.utils.timezone import make_aware
 
@@ -80,8 +78,6 @@ def home(request):
 
 
 @login_required
-@require_http_methods(["POST"])
-
 def validate_discount_code(request):
     """
     Endpoint AJAX para validar códigos de descuento
@@ -164,7 +160,6 @@ def discount_code_list(request, event_id=None):
     return render(request, 'app/discount_code_list.html', context)
 
 @login_required
-@require_POST
 def discount_code_create(request):
     if not request.user.is_organizer:
        return redirect('events')
@@ -218,7 +213,6 @@ def discount_code_create(request):
     return redirect('discount_code_list')
 
 @login_required
-@require_POST
 def discount_code_delete(request, discount_id):
     if not request.user.is_organizer:
        return redirect('events')
@@ -245,8 +239,6 @@ def discount_code_delete(request, discount_id):
 
 
 @login_required
-@require_POST
-
 def discount_code_update(request, discount_id):
     if not request.user.is_organizer:
        return redirect('events')
