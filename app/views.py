@@ -13,7 +13,7 @@ from django.http import HttpResponseForbidden
 from django.contrib import messages
 import re
 import random
-from django.db import IntegrityError
+from django.db import IntegrityError, models as django_models
 from django.utils.timezone import now
 from django.db.models import Sum
 from django.db.models import Avg
@@ -23,6 +23,7 @@ from django.views.decorators.http import require_http_methods
 from django.views.decorators.http import require_POST
 from django.utils import timezone
 from django.utils.timezone import make_aware
+
 
 def register(request):
     if request.method == "POST":
@@ -230,9 +231,16 @@ def discount_code_delete(request, discount_id):
     )
     
     code_name = discount_code.code
-    discount_code.delete()
-    
-    messages.success(request, f'Código de descuento "{code_name}" eliminado exitosamente')
+        
+    try:
+        discount_code.delete()
+        messages.success(request, f'Código de descuento "{code_name}" eliminado exitosamente')
+    except django_models.ProtectedError:
+        messages.error(
+            request,
+            f'No se puede eliminar el código "{code_name}" porque está vinculado a uno o más tickets.'
+        )
+
     return redirect('discount_code_list')
 
 
@@ -962,13 +970,10 @@ def comprar_ticket(request, event_id):
             user=user,
             event=event,
             discount_code=discount_code_obj,  # Guardar referencia al código
-            discount_percentage=discount_percentage  # Guardar porcentaje fijo
         )
         
         event.check_and_update_agotado()
 
-        messages.success(request, f"¡Compra exitosa! Tu código de ticket es: {ticket_code}")
-        return redirect('satisfaction_survey', ticket_id=ticket.pk)
         # Mensaje de éxito con información del descuento
         success_message = f"¡Compra exitosa! Tu código de ticket es: {ticket_code}"
         if discount_percentage:
