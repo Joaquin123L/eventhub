@@ -6,7 +6,7 @@
 <div class="container">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>Códigos de Descuento</h1>
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createDiscountModal">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#discountModal">
             <i class="bi bi-plus-lg"></i> Nuevo Código
         </button>
     </div>
@@ -14,9 +14,9 @@
     {% if messages %}
         {% for message in messages %}
             {% if forloop.last %}
-                <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+                <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show">
                     {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             {% endif %}
         {% endfor %}
@@ -38,45 +38,35 @@
             <tbody>
                 {% for discount in discount_codes %}
                     <tr>
-                        <td>
-                            <strong>{{ discount.code }}</strong>
-                        </td>
+                        <td><strong>{{ discount.code }}</strong></td>
                         <td>{{ discount.event.title }}</td>
-                        <td>
-                            <span class="badge bg-success">{{ discount.discount_percentage }}%</span>
-                        </td>
+                        <td><span class="badge bg-success">{{ discount.discount_percentage }}%</span></td>
                         <td>{{ discount.valid_from|date:"d M Y, H:i" }}</td>
                         <td>{{ discount.valid_until|date:"d M Y, H:i" }}</td>
                         <td>
-                            {% if discount.is_valid %}
-                                <span class="badge bg-success">Activo</span>
-                            {% else %}
-                                <span class="badge bg-secondary">Inactivo</span>
-                            {% endif %}
+                            <span class="badge bg-{% if discount.is_valid %}success{% else %}secondary{% endif %}">
+                                {% if discount.is_valid %}Activo{% else %}Inactivo{% endif %}
+                            </span>
                         </td>
                         <td>
                             <div class="hstack gap-1">
                                 <!-- Botón Editar -->
-                                <button class="btn btn-sm btn-outline-secondary"
-                                        aria-label="Editar"
-                                        title="Editar"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#editDiscountModal"
-                                        data-discount-id="{{ discount.id }}"
-                                        data-discount-code="{{ discount.code }}"
-                                        data-discount-percentage="{{ discount.discount_percentage }}"
-                                        data-discount-event="{{ discount.event.id }}"
-                                        data-discount-valid-from="{{ discount.valid_from|date:'Y-m-d\TH:i' }}"
-                                        data-discount-valid-until="{{ discount.valid_until|date:'Y-m-d\TH:i' }}"
-                                        data-discount-active="{{ discount.active|yesno:'true,false' }}">
+                                <button class="btn btn-sm btn-outline-secondary edit-btn"
+                                        aria-label="Editar" title="Editar"
+                                        data-bs-toggle="modal" data-bs-target="#discountModal"
+                                        data-id="{{ discount.id }}" data-code="{{ discount.code }}"
+                                        data-percentage="{{ discount.discount_percentage }}"
+                                        data-event="{{ discount.event.id }}"
+                                        data-from="{{ discount.valid_from|date:'Y-m-d\TH:i' }}"
+                                        data-until="{{ discount.valid_until|date:'Y-m-d\TH:i' }}"
+                                        data-active="{{ discount.active|yesno:'true,false' }}">
                                     <i class="bi bi-pencil" aria-hidden="true"></i>
                                 </button>
 
                                 <!-- Botón Activar/Desactivar -->
-                                <button class="btn btn-sm btn-outline-{% if discount.active %}warning{% else %}success{% endif %} toggle-active-btn"
+                                <button class="btn btn-sm btn-outline-{% if discount.active %}warning{% else %}success{% endif %} toggle-btn"
                                         title="{% if discount.active %}Desactivar{% else %}Activar{% endif %}"
-                                        data-discount-id="{{ discount.id }}"
-                                        data-active="{{ discount.active|yesno:'true,false' }}">
+                                        data-id="{{ discount.id }}">
                                     <i class="bi bi-{% if discount.active %}pause{% else %}play{% endif %}" aria-hidden="true"></i>
                                 </button>
 
@@ -84,9 +74,7 @@
                                 <form action="{% url 'discount_code_delete' discount.id %}" method="POST" class="d-inline">
                                     {% csrf_token %}
                                     <button class="btn btn-sm btn-outline-danger"
-                                            title="Eliminar"
-                                            type="submit"
-                                            aria-label="Eliminar"
+                                            title="Eliminar" type="submit" aria-label="Eliminar"
                                             onclick="return confirm('¿Estás seguro de eliminar el código {{ discount.code }}?')">
                                         <i class="bi bi-trash" aria-hidden="true"></i>
                                     </button>
@@ -96,11 +84,9 @@
                     </tr>
                 {% empty %}
                     <tr>
-                        <td colspan="7" class="text-center py-4">
-                            <div class="text-muted">
-                                <i class="bi bi-percent fs-1 d-block mb-2"></i>
-                                No hay códigos de descuento creados
-                            </div>
+                        <td colspan="7" class="text-center py-4 text-muted">
+                            <i class="bi bi-percent fs-1 d-block mb-2"></i>
+                            No hay códigos de descuento creados
                         </td>
                     </tr>
                 {% endfor %}
@@ -109,133 +95,76 @@
     </div>
 </div>
 
-<!-- Modal Crear Código de Descuento -->
-<div class="modal fade" id="createDiscountModal" tabindex="-1" aria-labelledby="createDiscountModalLabel" aria-hidden="true">
+<!-- Modal Único para Crear/Editar -->
+<div class="modal fade" id="discountModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
-        <form method="POST" action="{% url 'discount_code_create' %}" id="createDiscountForm">
+        <form method="POST" id="discountForm">
             {% csrf_token %}
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="createDiscountModalLabel">Crear Código de Descuento</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    <h5 class="modal-title" id="modalTitle">Crear Código de Descuento</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="createCode" class="form-label">Código de Descuento</label>
-                                <input type="text" class="form-control" name="code" id="createCode" required maxlength="50" placeholder="Ej: DESCUENTO2024">
+                                <label class="form-label">Código de Descuento</label>
+                                <input type="text" class="form-control" name="code" id="code" required 
+                                       minlength="3" maxlength="50" placeholder="Ej: DESCUENTO2024">
+                                <div class="invalid-feedback"></div>
                                 <div class="form-text">Mínimo 3 caracteres</div>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="createPercentage" class="form-label">Porcentaje de Descuento (%)</label>
-                                <input type="number" class="form-control" name="discount_percentage" id="createPercentage" required min="0" max="100" step="0.01" placeholder="0.00">
+                                <label class="form-label">Porcentaje de Descuento (%)</label>
+                                <input type="number" class="form-control" name="discount_percentage" 
+                                       id="percentage" required min="0" max="100" step="0.01">
+                                <div class="invalid-feedback"></div>
                                 <div class="form-text">Entre 0 y 100</div>
                             </div>
                         </div>
                     </div>
                     
                     <div class="mb-3">
-                        <label for="createEvent" class="form-label">Evento</label>
-                        <select class="form-select" name="event" id="createEvent" required>
+                        <label class="form-label">Evento</label>
+                        <select class="form-select" name="event" id="event" required>
                             <option value="">Seleccionar evento...</option>
                             {% for event in user_events %}
                                 <option value="{{ event.id }}">{{ event.title }}</option>
                             {% endfor %}
                         </select>
+                        <div class="invalid-feedback"></div>
                     </div>
                     
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="createValidFrom" class="form-label">Válido Desde</label>
-                                <input type="datetime-local" class="form-control" name="valid_from" id="createValidFrom" required>
+                                <label class="form-label">Válido Desde</label>
+                                <input type="datetime-local" class="form-control" name="valid_from" 
+                                       id="validFrom" required>
+                                <div class="invalid-feedback"></div>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="createValidUntil" class="form-label">Válido Hasta</label>
-                                <input type="datetime-local" class="form-control" name="valid_until" id="createValidUntil" required>
+                                <label class="form-label">Válido Hasta</label>
+                                <input type="datetime-local" class="form-control" name="valid_until" 
+                                       id="validUntil" required>
+                                <div class="invalid-feedback"></div>
                             </div>
                         </div>
                     </div>
                     
                     <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="active" id="createActive" checked>
-                        <label class="form-check-label" for="createActive">Activo</label>
+                        <input class="form-check-input" type="checkbox" name="active" id="active" checked>
+                        <label class="form-check-label">Activo</label>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Crear Código</button>
-                </div>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- Modal Editar Código de Descuento -->
-<div class="modal fade" id="editDiscountModal" tabindex="-1" aria-labelledby="editDiscountModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <form method="POST" id="editDiscountForm">
-            {% csrf_token %}
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="editDiscountModalLabel">Editar Código de Descuento</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="editCode" class="form-label">Código de Descuento</label>
-                                <input type="text" class="form-control" name="code" id="editCode" required maxlength="50">
-                                <div class="form-text">Mínimo 3 caracteres</div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="editPercentage" class="form-label">Porcentaje de Descuento (%)</label>
-                                <input type="number" class="form-control" name="discount_percentage" id="editPercentage" required min="0" max="100" step="0.01">
-                                <div class="form-text">Entre 0 y 100</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="editEvent" class="form-label">Evento</label>
-                        <select class="form-select" name="event" id="editEvent" required>
-                            {% for event in user_events %}
-                                <option value="{{ event.id }}">{{ event.title }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="editValidFrom" class="form-label">Válido Desde</label>
-                                <input type="datetime-local" class="form-control" name="valid_from" id="editValidFrom" required>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="editValidUntil" class="form-label">Válido Hasta</label>
-                                <input type="datetime-local" class="form-control" name="valid_until" id="editValidUntil" required>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="active" id="editActive">
-                        <label class="form-check-label" for="editActive">Activo</label>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                    <button type="submit" class="btn btn-primary" id="submitBtn">Crear Código</button>
                 </div>
             </div>
         </form>
@@ -243,36 +172,155 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-    // Manejar modal de edición
-    const editModal = document.getElementById('editDiscountModal');
-    editModal.addEventListener('show.bs.modal', function (event) {
-        const button = event.relatedTarget;
-        const discountId = button.getAttribute('data-discount-id');
-        const code = button.getAttribute('data-discount-code');
-        const percentage = button.getAttribute('data-discount-percentage');
-        const eventId = button.getAttribute('data-discount-event');
-        const validFrom = button.getAttribute('data-discount-valid-from');
-        const validUntil = button.getAttribute('data-discount-valid-until');
-        const active = button.getAttribute('data-discount-active') === 'true';
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('discountModal');
+    const form = document.getElementById('discountForm');
+    const title = document.getElementById('modalTitle');
+    const submitBtn = document.getElementById('submitBtn');
+    let isEditing = false;
 
-        const form = document.getElementById('editDiscountForm');
-        form.action = `/discount-codes/${discountId}/update/`;
+    // Función para mostrar error en campo específico
+    function showFieldError(fieldId, message) {
+        const field = document.getElementById(fieldId);
+        const feedback = field.parentNode.querySelector('.invalid-feedback');
+        field.classList.add('is-invalid');
+        if (feedback) feedback.textContent = message;
+    }
 
-        document.getElementById('editCode').value = code;
-        document.getElementById('editPercentage').value = percentage;
-        document.getElementById('editEvent').value = eventId;
-        document.getElementById('editValidFrom').value = validFrom;
-        document.getElementById('editValidUntil').value = validUntil;
-        document.getElementById('editActive').checked = active;
+    // Función para limpiar errores
+    function clearFieldErrors() {
+        document.querySelectorAll('.is-invalid').forEach(field => {
+            field.classList.remove('is-invalid');
+        });
+        document.querySelectorAll('.invalid-feedback').forEach(feedback => {
+            feedback.textContent = '';
+        });
+    }
+
+    // Validación mejorada del formulario
+    function validate() {
+        clearFieldErrors();
+        let hasErrors = false;
+
+        const code = document.getElementById('code').value.trim();
+        const percentage = parseFloat(document.getElementById('percentage').value);
+        const event = document.getElementById('event').value;
+        const validFrom = new Date(document.getElementById('validFrom').value);
+        const validUntil = new Date(document.getElementById('validUntil').value);
+        const now = new Date();
+
+        // Validar código
+        if (code.length < 3) {
+            showFieldError('code', 'El código debe tener al menos 3 caracteres');
+            hasErrors = true;
+        }
+
+        // Validar porcentaje
+        if (isNaN(percentage) || percentage < 0 || percentage > 100) {
+            showFieldError('percentage', 'El porcentaje debe estar entre 0 y 100');
+            hasErrors = true;
+        }
+
+        // Validar evento
+        if (!event) {
+            showFieldError('event', 'Debe seleccionar un evento');
+            hasErrors = true;
+        }
+
+        // Validar fechas
+        if (validFrom >= validUntil) {
+            showFieldError('validUntil', 'La fecha de fin debe ser posterior a la fecha de inicio');
+            hasErrors = true;
+        }
+
+        if (!isEditing && validUntil <= now) {
+            showFieldError('validUntil', 'La fecha de fin no puede ser en el pasado');
+            hasErrors = true;
+        }
+
+        return !hasErrors;
+    }
+
+    // Validación en tiempo real para fechas
+    function addDateValidation() {
+        const validFrom = document.getElementById('validFrom');
+        const validUntil = document.getElementById('validUntil');
+
+        validUntil.addEventListener('change', function() {
+            const fromDate = new Date(validFrom.value);
+            const untilDate = new Date(this.value);
+            const now = new Date();
+            const feedback = this.parentNode.querySelector('.invalid-feedback');
+
+            this.classList.remove('is-invalid');
+            feedback.textContent = '';
+
+            if (validFrom.value && fromDate >= untilDate) {
+                this.classList.add('is-invalid');
+                feedback.textContent = 'La fecha de fin debe ser posterior a la fecha de inicio';
+            } else if (!isEditing && untilDate <= now) {
+                this.classList.add('is-invalid');
+                feedback.textContent = 'La fecha de fin no puede ser en el pasado';
+            }
+        });
+
+        validFrom.addEventListener('change', function() {
+            // Revalidar fecha de fin si ya tiene valor
+            if (validUntil.value) {
+                validUntil.dispatchEvent(new Event('change'));
+            }
+        });
+    }
+
+    // Envío del formulario
+    form.addEventListener('submit', function(e) {
+        if (!validate()) {
+            e.preventDefault();
+            return;
+        }
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Guardando...';
     });
 
-    // Manejar toggle de estado activo
-    document.querySelectorAll('.toggle-active-btn').forEach(button => {
-        button.addEventListener('click', function() {
-            const discountId = this.getAttribute('data-discount-id');
+    // Limpiar modal al abrir
+    modal.addEventListener('show.bs.modal', function(e) {
+        const trigger = e.relatedTarget;
+        clearFieldErrors();
+        
+        if (trigger && trigger.classList.contains('edit-btn')) {
+            // Modo edición
+            isEditing = true;
+            title.textContent = 'Editar Código de Descuento';
+            submitBtn.textContent = 'Guardar Cambios';
+            form.action = `/discount-codes/${trigger.dataset.id}/update/`;
             
-            fetch(`/discount-codes/${discountId}/toggle-active/`, {
+            // Llenar campos
+            document.getElementById('code').value = trigger.dataset.code;
+            document.getElementById('percentage').value = parseFloat(trigger.dataset.percentage).toFixed(2);
+            document.getElementById('event').value = trigger.dataset.event;
+            document.getElementById('validFrom').value = trigger.dataset.from;
+            document.getElementById('validUntil').value = trigger.dataset.until;
+            document.getElementById('active').checked = trigger.dataset.active === 'true';
+        } else {
+            // Modo creación
+            isEditing = false;
+            title.textContent = 'Crear Código de Descuento';
+            submitBtn.textContent = 'Crear Código';
+            form.action = '{% url "discount_code_create" %}';
+            form.reset();
+            document.getElementById('active').checked = true;
+        }
+        submitBtn.disabled = false;
+    });
+
+    // Inicializar validaciones
+    addDateValidation();
+
+    // Toggle activo/inactivo
+    document.querySelectorAll('.toggle-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const id = this.dataset.id;
+            fetch(`/discount-codes/${id}/toggle-active/`, {
                 method: 'POST',
                 headers: {
                     'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
@@ -280,15 +328,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             })
             .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    location.reload();
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error al cambiar el estado del código');
-            });
+            .then(data => data.success && location.reload())
+            .catch(() => alert('Error al cambiar el estado'));
         });
     });
 });
