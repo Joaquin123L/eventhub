@@ -363,13 +363,7 @@ class Ticket(models.Model):
     ticket_code = models.CharField(max_length=100, unique=True)
     quantity = models.IntegerField(default=1)
     type = models.CharField(max_length=50, choices=[('general', 'General'), ('vip', 'VIP')], default='general')
-    discount_code = models.ForeignKey('DiscountCode', null=True, blank=True, on_delete=models.SET_NULL)
-    #lo conservamos por si se quiere eliminar/modificar codigos de descuento.
-    discount_percentage = models.PositiveIntegerField(
-        null=True, 
-        blank=True, 
-        help_text="Porcentaje de descuento aplicado (0-100)"
-    )
+    discount_code = models.ForeignKey('DiscountCode', null=True, blank=True, on_delete=models.PROTECT)
 
     @classmethod
     def validate(cls, ticket_code, quantity):
@@ -384,7 +378,7 @@ class Ticket(models.Model):
         return errors
 
     @classmethod
-    def new(cls, ticket_code, quantity, user, event, discount_code=None, discount_percentage=None):
+    def new(cls, ticket_code, quantity, user, event, discount_code=None):
         errors = cls.validate(ticket_code, quantity)
 
         if len(errors.keys()) > 0:
@@ -395,8 +389,7 @@ class Ticket(models.Model):
             quantity=quantity,
             user=user,
             event=event,
-            discount_code=discount_code,
-            discount_percentage=discount_percentage
+            discount_code=discount_code
         )
 
     def update(self, type, quantity):
