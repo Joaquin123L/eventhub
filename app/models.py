@@ -289,9 +289,7 @@ class Ticket(models.Model):
     def new(cls, ticket_code, quantity, user, event):
         errors = cls.validate(ticket_code, quantity)
 
-        tickets_previos = Ticket.objects.filter(user=user, event=event).aggregate(total=Sum('quantity'))['total'] or 0
-        if tickets_previos + quantity > cls.MAX_TICKETS_PER_USER:
-            errors["__all__"] = [f"No puedes comprar más de {cls.MAX_TICKETS_PER_USER} entradas para este evento."]
+        errors.update(cls.validate_max_per_user(user, event, quantity))
 
         if len(errors.keys()) > 0:
             return False, errors
