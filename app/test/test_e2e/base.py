@@ -1,11 +1,12 @@
 import os
 
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import Browser,sync_playwright
 
 from app.models import User
 
 os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
+playwright = sync_playwright().start()
 headless = os.environ.get("HEADLESS", 1) == 1
 slow_mo = os.environ.get("SLOW_MO", 0)
 
@@ -16,14 +17,14 @@ class BaseE2ETest(StaticLiveServerTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.playwright = sync_playwright().start()
-        cls.browser = cls.playwright.chromium.launch(headless=headless, slow_mo=int(slow_mo))
+        cls.browser: Browser = playwright.chromium.launch(
+            headless=headless, slow_mo=int(slow_mo)
+        )
 
     @classmethod
     def tearDownClass(cls):
-        cls.browser.close()
-        cls.playwright.stop()
         super().tearDownClass()
+        cls.browser.close()
 
     def setUp(self):
         # Crear un contexto y página de Playwright
