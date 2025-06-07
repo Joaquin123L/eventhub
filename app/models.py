@@ -130,7 +130,9 @@ class Event(models.Model):
         return True, None
 
     def update(self, title, description, scheduled_at, organizer, category=None, venue=None, capacity=None):
-        fecha_cambiada = scheduled_at and scheduled_at != self.scheduled_at
+        # Guardamos los valores anteriores
+        old_scheduled_at = self.scheduled_at
+        old_venue = self.venue
 
         # Usar los valores actuales si no se pasan nuevos
         new_title = title or self.title
@@ -150,13 +152,44 @@ class Event(models.Model):
         self.venue = venue if venue is not None else self.venue
         self.capacity = capacity if capacity is not None else self.capacity
 
-        if fecha_cambiada and self.status != "Cancelado":
+        # Cambio de fecha/lugar
+        hubo_cambio_fecha = old_scheduled_at != self.scheduled_at
+        hubo_cambio_lugar = old_venue != self.venue
+        if hubo_cambio_fecha and self.status != "Cancelado":
             self.status = "Reprogramado"
+
+        if hubo_cambio_fecha or hubo_cambio_lugar:
+            self.notify_changes(old_scheduled_at=old_scheduled_at, old_venue=old_venue)
 
         self.save()
         self.check_and_update_status()
 
         return True, None
+
+    def notify_changes(self, old_scheduled_at=None, old_venue=None):
+        cambios = []
+
+        if old_scheduled_at and old_scheduled_at != self.scheduled_at:
+            cambios.append(
+                f"Fecha/Hora: de {old_scheduled_at.strftime('%d/%m/%Y %H:%M')} "
+                f"a {self.scheduled_at.strftime('%d/%m/%Y %H:%M')}"
+            )
+
+        if old_venue and old_venue != self.venue:
+            old_name = old_venue.name if old_venue else 'sin lugar'
+            new_name = self.venue.name if self.venue else 'sin lugar'
+            cambios.append(f"Lugar: de {old_name} a {new_name}")
+
+        if not cambios:
+            return
+
+        usuarios = User.objects.filter(tickets__event=self).distinct()
+
+        titulo = "Cambio en evento"
+        mensaje = f"Se han realizado cambios en el evento '{self.title}':\n\n" + "\n".join(cambios)
+        prioridad = "HIGH"
+
+        Notification.new(titulo, mensaje, prioridad, usuarios, event=self)
 
 class Category(models.Model):
     name =models.CharField(max_length=100)
@@ -542,3 +575,4 @@ class SatisfactionSurvey(models.Model):
     would_recommend = models.IntegerField(choices=[(1, 'Definitivamente no'), (2, 'Probablemente no'), (3, 'No estoy seguro/a'), (4, 'Probablemente sí'), (5, 'Definitivamente sí')])
 
     additional_comments = models.TextField(blank=True)
+
