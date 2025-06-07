@@ -618,6 +618,16 @@ def comprar_ticket(request, event_id):
                 'event_id': event_id,
                 'error': error
             })
+        
+        # verificar limite de entradas por usuario usando la funcion del modelo
+        errores_limite = Ticket.validate_max_per_user(user, event, quantity)
+        if errores_limite:
+            return render(request, 'app/ticket_compra.html', {
+                'event': event,
+                'event_id': event_id,
+                'error': errores_limite.get("max_tickets")
+            })
+        
         # verificar si hay cupo, si no hay cupo se muestra un error que diga no quedan entradas
         if event.capacity is not None:
             tickets_vendidos = Ticket.objects.filter(event=event).aggregate(total=Sum('quantity'))['total'] or 0
