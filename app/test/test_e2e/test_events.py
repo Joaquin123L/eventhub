@@ -4,6 +4,7 @@ import unittest
 from datetime import timedelta
 from django.utils import timezone
 from playwright.sync_api import expect
+import time
 
 from app.models import Event, User, Category, Venue
 
@@ -211,7 +212,7 @@ class EventDisplayTest(EventBaseTest):
         # Verificar que existe un mensaje indicando que no hay eventos
         no_events_message = self.page.locator("text=No hay eventos disponibles")
         expect(no_events_message).to_be_visible()
-    
+
 
 
 
@@ -440,18 +441,19 @@ class EventCRUDTest(EventBaseTest):
 class EventStateFlowE2ETest(EventBaseTest):
 
     def test_complete_event_state_flow(self):
-        # 1. Verificar estado inicial (Activo)
-        self.page.goto(f"{self.live_server_url}/event/{self.event1.pk}/")
-        status_element = self.page.get_by_text("Estado: Activo")
-        self.assertTrue(self.event1.status,'Activo')
-        print("Paso 1: Evento creado con estado Activo - OK")
 
-        # 2. Comprar entradas hasta agotar capacidad (debe cambiar a Agotado)
         self.event1.capacity = 2
         self.event1.save()
-
+        # 1. Verificar estado inicial (Activo)
         self.login_user("usuario", "password123")
-        self.page.goto(f"{self.live_server_url}/ticket_compra/{self.event1.pk}")
+
+        self.page.goto(f"{self.live_server_url}/events/", wait_until="networkidle")
+        fila_correcta = self.page.locator("table tbody tr", has_text="Evento de prueba 1").first
+        expect(fila_correcta.locator("td").nth(5)).to_have_text("Activo")
+
+        print("Paso 1: Evento creado con estado Activo - OK")
+
+        self.page.goto(f"{self.live_server_url}/ticket_compra/{self.event1.pk}", wait_until="networkidle")
 
         # Llenar datos del formulario
         self.page.fill("input[name='card_name']", "Juan Pérez")
@@ -464,11 +466,15 @@ class EventStateFlowE2ETest(EventBaseTest):
 
         # Enviar formulario
         self.page.click("#submit-btn")
+        time.sleep(2)
+        #porque tarda en procesar el pago
         # Verificar que el estado sigue siendo Activo (aún hay capacidad)
-        self.assertTrue(self.event1.status,'Activo')
+        self.page.goto(f"{self.live_server_url}/events/")
+        fila_correcta = self.page.locator("table tbody tr", has_text="Evento de prueba 1").first
+        expect(fila_correcta.locator("td").nth(5)).to_have_text("Activo")
         print("Paso 2: El evento sigue en estado Activo - OK")
 
-        self.page.goto(f"{self.live_server_url}/ticket_compra/{self.event1.pk}")
+        self.page.goto(f"{self.live_server_url}/ticket_compra/{self.event1.pk}", wait_until="networkidle")
 
         # Llenar datos del formulario
         self.page.fill("input[name='card_name']", "Juan Pérez")
@@ -480,32 +486,24 @@ class EventStateFlowE2ETest(EventBaseTest):
         self.page.fill("#quantity", "1")
 
         self.page.click("#submit-btn")
-        self.assertTrue(self.event1.status,'Agotado')
+        time.sleep(2)
+        #porque tarda en procesar el pago
+        self.page.goto(f"{self.live_server_url}/events/")
+        fila_correcta = self.page.locator("table tbody tr", has_text="Evento de prueba 1").first
+        expect(fila_correcta.locator("td").nth(5)).to_have_text("Agotado")
         print("Paso 3: El evento Se Agoto - OK")
 
-        # 3. Eliminar una entrada (debe volver a Activo)
-        # Iniciar sesión como organizador
-        self.login_user("organizador", "password123")
-
         # Navegar a la lista de tickets
-        self.page.goto(f"{self.live_server_url}/tickets/{self.event1.pk}")
+        self.page.goto(f"{self.live_server_url}/Mis_tickets/", wait_until="networkidle")
 
         # Hacer clic en el botón de eliminar del primer ticket
-        self.page.query_selector_all("form[action*='ticket_delete'] button[type='submit']")
-        self.assertTrue(self.event1.status,'Activo')
+        fila = self.page.locator("tr", has_text="Evento de prueba 1").first
+        fila.locator("form[action*='ticket_delete'] button[type='submit']").click()
+        self.page.wait_for_load_state("networkidle")
+        self.page.goto(f"{self.live_server_url}/events/")
+        fila_correcta = self.page.locator("table tbody tr", has_text="Evento de prueba 1").first
+        expect(fila_correcta.locator("td").nth(5)).to_have_text("Activo")
         print("Paso 4: El evento volvio al estado Activo - OK")
 
-        # 4. Cancelar el evento (debe cambiar a Cancelado)
-        # Navegar a la página de cancelación
-        self.page.goto(f"{self.live_server_url}/events/")
+        self.page.goto(f"{self.live_server_url}/accounts/logout/", wait_until="networkidle")
 
-        cancel_buttons = self.page.query_selector_all(
-            "form[action*='event_cancel'] button:not([disabled])"
-        )
-        for btn in cancel_buttons:
-            btn.click()
-            self.page.wait_for_load_state("networkidle")
-
-        # Verificar que el estado cambió a Cancelado
-        self.assertTrue(self.event1.status,'Cancelado')
-        print("Paso 4: El evento se cancelo - OK")
