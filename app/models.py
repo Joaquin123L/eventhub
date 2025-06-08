@@ -287,6 +287,8 @@ class Ticket(models.Model):
     quantity = models.IntegerField(default=1)
     type = models.CharField(max_length=50, choices=[('general', 'General'), ('vip', 'VIP')], default='general')
 
+    MAX_TICKETS_PER_USER = 4
+
     @classmethod
     def validate(cls, ticket_code, quantity):
         errors = {}
@@ -300,8 +302,28 @@ class Ticket(models.Model):
         return errors
 
     @classmethod
+    def validate_max_per_user(cls, user, event, quantity):
+        from django.db.models import Sum
+        errors = {}
+
+        tickets_previos = cls.objects.filter(user=user, event=event).aggregate(
+            total=Sum('quantity')
+        )['total'] or 0
+
+        if tickets_previos + quantity > cls.MAX_TICKETS_PER_USER:
+            disponibles = max(0, cls.MAX_TICKETS_PER_USER - tickets_previos)
+            errors["max_tickets"] = (
+                f"No puedes comprar más de {cls.MAX_TICKETS_PER_USER} entradas por evento. "
+                f"Ya compraste {tickets_previos} y solo puedes adquirir {disponibles} más."
+            )
+
+        return errors
+    
+    @classmethod
     def new(cls, ticket_code, quantity, user, event):
         errors = cls.validate(ticket_code, quantity)
+
+        errors.update(cls.validate_max_per_user(user, event, quantity))
 
         if len(errors.keys()) > 0:
             return False, errors
@@ -312,6 +334,7 @@ class Ticket(models.Model):
             user=user,
             event=event
         )
+        return True, {}
 
     def update(self, type, quantity):
         self.type = type or self.type
