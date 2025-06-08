@@ -1,10 +1,10 @@
 import datetime
+from datetime import timedelta
 
 from django.test import TestCase
 from django.utils import timezone
-from datetime import timedelta
-from django.urls import reverse
-from app.models import Event, User, Ticket
+
+from app.models import Event, Ticket, User
 
 
 class EventModelTest(TestCase):
@@ -232,7 +232,7 @@ class EventModelTest(TestCase):
             ticket_code="B1",
             user=self.organizer
         )
-        ticket2 = Ticket.objects.create(
+        Ticket.objects.create( 
             event=event,
             quantity=2,
             ticket_code="B2",

@@ -1,7 +1,9 @@
-from app.test.test_e2e.base import BaseE2ETest
-from app.models import User, Event, Favorite
-from django.utils import timezone
 import datetime
+
+from django.utils import timezone
+
+from app.models import Event, Favorite, User
+from app.test.test_e2e.base import BaseE2ETest
 
 
 class EventFavoritesE2ETest(BaseE2ETest):

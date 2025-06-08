@@ -1,7 +1,7 @@
 import os
 
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
-from playwright.sync_api import Browser,sync_playwright
+from playwright.sync_api import Browser, sync_playwright
 
 from app.models import User
 

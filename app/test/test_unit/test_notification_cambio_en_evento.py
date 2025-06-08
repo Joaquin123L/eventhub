@@ -1,7 +1,9 @@
-from django.test import TestCase
-from app.models import User, Notification, Event, Venue, Ticket
-from django.utils import timezone
 from datetime import timedelta
+
+from django.test import TestCase
+from django.utils import timezone
+
+from app.models import Event, Notification, Ticket, User, Venue
 
 
 class BaseTestSetup(TestCase):

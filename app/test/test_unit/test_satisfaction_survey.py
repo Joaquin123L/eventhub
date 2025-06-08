@@ -1,5 +1,7 @@
 from django.test import TestCase
+
 from app.views import parse_survey_data
+
 
 class ParseSurveyDataTest(TestCase):
     def setUp(self):
