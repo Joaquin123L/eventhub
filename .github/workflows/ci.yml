@@ -25,7 +25,7 @@ jobs:
       - name: Run linter
         run: ruff check .
 
-  build:
+    build:
     name: Build Docker Image
     runs-on: ubuntu-latest
 
@@ -39,12 +39,29 @@ jobs:
           python-version: '3.10'
           cache: 'pip'
 
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+      - name: Create .env file
+        run: |
+          cat <<EOF > .env
+          DJANGO_SECRET_KEY=testing-secret-key
+          DJANGO_DEBUG=True
+          DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
 
-      # Luego de que se complete la actividad 1 debo agregar lo del docker
-      - name: Run build (placeholder)
-        run: echo "Build exitoso"
+          DB_ENGINE=django.db.backends.sqlite3
+          DB_NAME=db.sqlite3
+
+          LANGUAGE_CODE=es-ar
+          TIME_ZONE=UTC
+
+          LOGIN_REDIRECT_URL=/events/
+          LOGIN_URL=/accounts/login/
+          LOGOUT_REDIRECT_URL=/accounts/login/
+          EOF
+
+      - name: Build Docker image
+        run: docker build -t myapp .
+
+      - name: Run container with env
+        run: docker run --env-file .env -p 8000:8000 myapp
 
   unit_integration_tests:
     name: Unit & Integration Tests
@@ -63,6 +80,24 @@ jobs:
 
       - name: Install dependencies
         run: pip install -r requirements.txt
+
+      - name: Create .env file
+        run: |
+          cat <<EOF > .env
+          DJANGO_SECRET_KEY=testing-secret-key
+          DJANGO_DEBUG=True
+          DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
+
+          DB_ENGINE=django.db.backends.sqlite3
+          DB_NAME=db.sqlite3
+
+          LANGUAGE_CODE=es-ar
+          TIME_ZONE=UTC
+
+          LOGIN_REDIRECT_URL=/events/
+          LOGIN_URL=/accounts/login/
+          LOGOUT_REDIRECT_URL=/accounts/login/
+          EOF
 
       - name: Run unit and integration tests
         run: python manage.py test app/test/test_unit app/test/test_integration
@@ -84,6 +119,24 @@ jobs:
 
       - name: Install dependencies
         run: pip install -r requirements.txt
+
+      - name: Create .env file
+        run: |
+          cat <<EOF > .env
+          DJANGO_SECRET_KEY=testing-secret-key
+          DJANGO_DEBUG=True
+          DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
+
+          DB_ENGINE=django.db.backends.sqlite3
+          DB_NAME=db.sqlite3
+
+          LANGUAGE_CODE=es-ar
+          TIME_ZONE=UTC
+
+          LOGIN_REDIRECT_URL=/events/
+          LOGIN_URL=/accounts/login/
+          LOGOUT_REDIRECT_URL=/accounts/login/
+          EOF
 
       - name: Install Playwright and browsers
         run: |
