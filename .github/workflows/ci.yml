@@ -60,8 +60,8 @@ jobs:
       - name: Build Docker image
         run: docker build -t myapp .
 
-      - name: Run container with env
-        run: docker run --env-file .env -p 8000:8000 myapp
+      - name: Run Django checks in container
+        run: docker run --env-file .env myapp python manage.py check
 
   unit_integration_tests:
     name: Unit & Integration Tests
