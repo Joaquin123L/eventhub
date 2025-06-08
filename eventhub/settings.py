@@ -25,7 +25,12 @@ SECRET_KEY = "django-insecure--f67ll=2-b2qolla9=1f8mtg@s=l8^y8aj=@ij-0f4)eg@%8(0
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['eventhub-rvco.onrender.com', 'localhost']
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://eventhub-rvco.onrender.com",
+]
+
 
 
 # Application definition
