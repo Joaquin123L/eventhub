@@ -32,32 +32,42 @@ class PruebaTicketUnit(TicketLimitTest):
         Ticket.objects.create(ticket_code="ABC1", quantity=2, user=self.user, event=self.event)
         Ticket.objects.create(ticket_code="ABC2", quantity=1, user=self.user, event=self.event)
 
-        total = self.entradas_totales()
-        self.assertEqual(total, 3)
+        Ticket.new(ticket_code="ABC3", quantity=1, user=self.user, event=self.event)
 
-        puede_comprar = (total + 1) <= 4  # ¿podría comprar 1 entrada más?
-        self.assertTrue(puede_comprar)
+        # Verificamos que se creó el nuevo ticket y cantidad total sea 4
+        total_quantity = Ticket.objects.filter(user=self.user, event=self.event).aggregate(total=Sum('quantity'))['total']
+        self.assertEqual(total_quantity, 4)
 
     def test_no_puede_comprar_si_supera_4(self):
         """Debe rechazar si al sumar la cantidad nueva se supera el máximo"""
         Ticket.objects.create(ticket_code="ABC3", quantity=2, user=self.user, event=self.event)
         Ticket.objects.create(ticket_code="ABC4", quantity=2, user=self.user, event=self.event)
 
-        total = self.entradas_totales()
-        self.assertEqual(total, 4)
+        # Cantidad actual total
+        total_before = Ticket.objects.filter(user=self.user, event=self.event).aggregate(total=Sum('quantity'))['total']
+    
+        # Intentar comprar 1 entrada más (sería la quinta)
+        Ticket.new(ticket_code="ABC6", quantity=1, user=self.user, event=self.event)
 
-        puede_comprar = (total + 1) <= 4  # ¿podría comprar una más?
-        self.assertFalse(puede_comprar)
+        # Cantidad total después: debe ser igual, no se creó ticket nuevo
+        total_after = Ticket.objects.filter(user=self.user, event=self.event).aggregate(total=Sum('quantity'))['total']
+
+        self.assertEqual(total_before, 4)
+        self.assertEqual(total_after, 4)  # No cambió porque no se pudo comprar mas
 
     def test_no_puede_comprar_si_ya_superó_4(self):
         """Caso extremo: ya tiene más de 4 entradas"""
         Ticket.objects.create(ticket_code="ABC5", quantity=5, user=self.user, event=self.event)
 
-        total = self.entradas_totales()
-        self.assertEqual(total, 5)
+        total_before = Ticket.objects.filter(user=self.user, event=self.event).aggregate(total=Sum('quantity'))['total']
+    
+        # Intentar comprar 1 entrada más
+        Ticket.new(ticket_code="ABC8", quantity=1, user=self.user, event=self.event)
 
-        puede_comprar = (total + 1) <= 4
-        self.assertFalse(puede_comprar)
+        total_after = Ticket.objects.filter(user=self.user, event=self.event).aggregate(total=Sum('quantity'))['total']
+
+        self.assertEqual(total_before, 5)
+        self.assertEqual(total_after, 5)  # No cambia porque no debería permitir la compra
 
     
     # agrego test para comprobar la cantidad de entradas que quedan para un ticket, por ejemplo creo un evento con 10 entradas y luego creo un ticket con 2 entradas, entonces la cantidad de entradas que quedan para ese ticket es 8

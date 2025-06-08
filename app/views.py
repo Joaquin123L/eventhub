@@ -563,8 +563,12 @@ def comprar_ticket(request, event_id):
     event = get_object_or_404(Event, pk=event_id)
 
     user = request.user
-    tickets_previos = Ticket.objects.filter(user=user, event=event).aggregate(total=Sum('quantity'))['total'] or 0
-    tickets_disponibles = max(0, 4 - tickets_previos)
+    tickets_previos = Ticket.objects.filter(user=user, event=event).aggregate(
+        total=Sum('quantity')
+    )['total'] or 0
+    tickets_disponibles = max(0, Ticket.MAX_TICKETS_PER_USER - tickets_previos)
+
+
 
     if request.method == 'POST':
         # Obtener datos del formulario
@@ -581,17 +585,6 @@ def comprar_ticket(request, event_id):
                 'event': event,
                 'event_id': event_id
             })
-
-        if tickets_previos + quantity > 4:
-            disponibles = max(0, 4 - tickets_previos)
-            messages.error(
-                request,
-                f"No puedes comprar más de 4 entradas por evento. Ya compraste {tickets_previos} y solo puedes adquirir {disponibles} más."
-            )
-            return render(request, 'app/ticket_compra.html', {
-                'event': event,
-                'event_id': event_id
-            })
                 # Verificar si el evento está cancelado
         if event.status == "Cancelado":
             error = "No se pueden comprar entradas para un evento cancelado."
@@ -600,6 +593,16 @@ def comprar_ticket(request, event_id):
                 'event_id': event_id,
                 'error': error
             })
+        
+        # verificar limite de entradas por usuario usando la funcion del modelo
+        errores_limite = Ticket.validate_max_per_user(user, event, quantity)
+        if errores_limite:
+            return render(request, 'app/ticket_compra.html', {
+                'event': event,
+                'event_id': event_id,
+                'error': errores_limite.get("max_tickets")
+            })
+        
         # verificar si hay cupo, si no hay cupo se muestra un error que diga no quedan entradas
         if event.capacity is not None:
             tickets_vendidos = Ticket.objects.filter(event=event).aggregate(total=Sum('quantity'))['total'] or 0
@@ -635,9 +638,9 @@ def comprar_ticket(request, event_id):
                 'error': "Error en el procesamiento del pago"
             })
 
-        errors = Ticket.validate(ticket_code, quantity)
+        success, errors = Ticket.new(ticket_code, quantity, user, event)
 
-        if errors:
+        if not success:
             messages.error(request, "Error en la validación del ticket.")
             return render(request, 'app/ticket_compra.html', {
                 'errors': errors,
@@ -647,13 +650,10 @@ def comprar_ticket(request, event_id):
 
         user = request.user
 
-        ticket = Ticket.objects.create(
-            ticket_code=ticket_code,
-            quantity=quantity,
-            type=type_entrada,
-            user=user,
-            event=event
-        )
+        ticket = Ticket.objects.get(ticket_code=ticket_code)  # Recuperar el ticket recién creado
+        ticket.type = type_entrada
+        ticket.save()
+
         event.check_and_update_agotado()
 
         messages.success(request, f"¡Compra exitosa! Tu código de ticket es: {ticket_code}")
