@@ -1,0 +1,146 @@
+name: CI Pipeline
+
+on:
+  pull_request:
+    branches: [main]
+
+env:
+  DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+  DJANGO_DEBUG: ${{ secrets.DJANGO_DEBUG }}
+  DJANGO_ALLOWED_HOSTS: ${{ secrets.DJANGO_ALLOWED_HOSTS }}
+  DB_ENGINE: ${{ secrets.DB_ENGINE }}
+  DB_NAME: ${{ secrets.DB_NAME }}
+  LANGUAGE_CODE: ${{ secrets.LANGUAGE_CODE }}
+  TIME_ZONE: ${{ secrets.TIME_ZONE }}
+  LOGIN_REDIRECT_URL: ${{ secrets.LOGIN_REDIRECT_URL }}
+  LOGIN_URL: ${{ secrets.LOGIN_URL }}
+  LOGOUT_REDIRECT_URL: ${{ secrets.LOGOUT_REDIRECT_URL }}
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run linter
+        run: ruff check .
+
+  build:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Create .env file
+        run: |
+          cat <<EOF > .env
+          DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+          DJANGO_DEBUG=${DJANGO_DEBUG}
+          DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS}
+          DB_ENGINE=${DB_ENGINE}
+          DB_NAME=${DB_NAME}
+          LANGUAGE_CODE=${LANGUAGE_CODE}
+          TIME_ZONE=${TIME_ZONE}
+          LOGIN_REDIRECT_URL=${LOGIN_REDIRECT_URL}
+          LOGIN_URL=${LOGIN_URL}
+          LOGOUT_REDIRECT_URL=${LOGOUT_REDIRECT_URL}
+          EOF
+
+      - name: Build Docker image
+        run: docker build -t myapp .
+
+      - name: Run Django checks in container
+        run: docker run --env-file .env myapp python manage.py check
+
+  unit_integration_tests:
+    name: Unit & Integration Tests
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Create .env file
+        run: |
+          cat <<EOF > .env
+          DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+          DJANGO_DEBUG=${DJANGO_DEBUG}
+          DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS}
+          DB_ENGINE=${DB_ENGINE}
+          DB_NAME=${DB_NAME}
+          LANGUAGE_CODE=${LANGUAGE_CODE}
+          TIME_ZONE=${TIME_ZONE}
+          LOGIN_REDIRECT_URL=${LOGIN_REDIRECT_URL}
+          LOGIN_URL=${LOGIN_URL}
+          LOGOUT_REDIRECT_URL=${LOGOUT_REDIRECT_URL}
+          EOF
+
+      - name: Run unit and integration tests
+        run: python manage.py test app/test/test_unit app/test/test_integration
+
+  e2e_tests:
+    name: End-to-End Tests
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Create .env file
+        run: |
+          cat <<EOF > .env
+          DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+          DJANGO_DEBUG=${DJANGO_DEBUG}
+          DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS}
+          DB_ENGINE=${DB_ENGINE}
+          DB_NAME=${DB_NAME}
+          LANGUAGE_CODE=${LANGUAGE_CODE}
+          TIME_ZONE=${TIME_ZONE}
+          LOGIN_REDIRECT_URL=${LOGIN_REDIRECT_URL}
+          LOGIN_URL=${LOGIN_URL}
+          LOGOUT_REDIRECT_URL=${LOGOUT_REDIRECT_URL}
+          EOF
+
+      - name: Install Playwright and browsers
+        run: |
+          python -m playwright install --with-deps chromium
+          python -m playwright install --with-deps firefox
+
+      - name: Run E2E tests
+        run: python manage.py test app/test/test_e2e
