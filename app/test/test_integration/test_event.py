@@ -1,11 +1,11 @@
 import datetime
-import time
 from datetime import timedelta
+
 from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from app.models import Event, User, Ticket, Category, Venue
+from app.models import Category, Event, Ticket, User, Venue
 
 
 class BaseEventTestCase(TestCase):
@@ -441,7 +441,7 @@ class EventStatusIntegrationTest(BaseEventTestCase):
     def test_evento_agotado_y_vuelve_a_activo(self):
         self.event1.capacity=5
         self.client.login(username="organizador", password="password123")
-        ticket1 = Ticket.objects.create(
+        Ticket.objects.create(
             event=self.event1,
             user=self.organizer,
             quantity=3,

@@ -1,12 +1,10 @@
-from django.test import TestCase
-from django.contrib.auth import get_user_model
-from app.models import Event, Ticket, User
-from django.utils import timezone
 from datetime import timedelta
+
 from django.db.models import Sum
+from django.test import TestCase
+from django.utils import timezone
 
-
-User = get_user_model()
+from app.models import Event, Ticket, User
 
 
 class TicketLimitTest(TestCase):
@@ -81,7 +79,7 @@ class PruebaTicketUnit(TicketLimitTest):
             capacity=10
         )
         #hace la creacion del ticket con quantity = 2
-        ticket = Ticket.objects.create(
+        Ticket.objects.create(
             ticket_code="ABC1",
             quantity=2,
             user=self.user,

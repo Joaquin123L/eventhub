@@ -1,9 +1,11 @@
-from django.test import TestCase, Client
+import datetime
+
+from django.db.models import Sum
+from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
-import datetime
-from django.db.models import Sum
-from app.models import User, Event, Ticket
+
+from app.models import Event, Ticket, User
 
 
 class CompraTicketLimiteTest(TestCase):

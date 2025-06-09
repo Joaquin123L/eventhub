@@ -1,8 +1,11 @@
+import datetime
+
 from django.test import TestCase
 from django.urls import reverse
-from app.models import Event, Rating, Ticket, User
-import datetime
 from django.utils import timezone
+
+from app.models import Event, Rating, Ticket, User
+
 
 class OrganizerRatingVisibilityTest(TestCase):
     def setUp(self):

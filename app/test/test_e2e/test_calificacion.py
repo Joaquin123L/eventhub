@@ -1,7 +1,9 @@
-from app.models import User, Event, Rating, Ticket
-from app.test.test_e2e.base import BaseE2ETest
-from django.utils import timezone
 import datetime
+
+from django.utils import timezone
+
+from app.models import Event, Rating, Ticket, User
+from app.test.test_e2e.base import BaseE2ETest
 
 
 class VerPromedioRatingE2ETest(BaseE2ETest):

@@ -1,9 +1,10 @@
-from django.test import TestCase, Client
-from django.urls import reverse
-from django.utils import timezone
 import datetime
 
-from app.models import User, Event, Favorite
+from django.test import Client, TestCase
+from django.urls import reverse
+from django.utils import timezone
+
+from app.models import Event, Favorite, User
 
 
 class ToggleFavoriteIntegrationTest(TestCase):

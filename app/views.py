@@ -1,21 +1,34 @@
 import datetime
-from django.contrib.auth import authenticate, login, get_user_model
+import random
+import re
+
+from django.contrib import messages
+from django.contrib.auth import authenticate, get_user_model, login
 from django.contrib.auth.decorators import login_required
+from django.db import IntegrityError
+from django.db.models import Avg, Count, Exists, OuterRef, Sum
+from django.http import HttpResponseForbidden, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
-from django.db.models import Count, Exists, OuterRef
-from django.http import HttpResponseForbidden, HttpResponseRedirect, HttpResponseBadRequest
-from .models import Event, User, Category, Comment, Venue, Ticket, Rating, RefoundRequest, RefoundReason, RefoundStatus, \
-    Notification, NotificationUser, Favorite, SatisfactionSurvey
-from django.contrib import messages
-import re
-import random
-from django.db import IntegrityError
 from django.utils.timezone import now
-from django.db.models import Sum
-from django.db.models import Avg
 
+from .models import (
+    Category,
+    Comment,
+    Event,
+    Favorite,
+    Notification,
+    NotificationUser,
+    Rating,
+    RefoundReason,
+    RefoundRequest,
+    RefoundStatus,
+    SatisfactionSurvey,
+    Ticket,
+    User,
+    Venue,
+)
 
 
 def register(request):
@@ -282,7 +295,7 @@ def category_form(request):
         name = request.POST.get('name')
         description = request.POST.get('description')
 
-        category = Category.objects.create(name=name, description=description)
+        Category.objects.create(name=name, description=description)
 
         return redirect('categorias')
 
