@@ -37,7 +37,7 @@ jobs:
         run: ruff check .
 
   build:
-    name: Build Docker Image
+    name: Build
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -66,10 +66,10 @@ jobs:
           LOGOUT_REDIRECT_URL=${LOGOUT_REDIRECT_URL}
           EOF
 
-      - name: Build Docker image
+      - name: Build Docker image (Validation)
         run: docker build -t myapp .
 
-      - name: Run Django checks in container
+      - name: Run Django checks in container (Validation)
         run: docker run --env-file .env myapp python manage.py check
 
   unit_integration_tests:
