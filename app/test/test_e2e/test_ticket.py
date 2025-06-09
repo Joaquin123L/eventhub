@@ -1,10 +1,9 @@
-from django.utils import timezone
-from app.models import User, Event, Ticket
-from app.test.test_e2e.base import BaseE2ETest
-from django.urls import reverse
 import datetime
-from django.test.client import Client
-import os
+
+from django.utils import timezone
+
+from app.models import Event, User
+from app.test.test_e2e.base import BaseE2ETest
 
 
 class ComprarTicketE2ETest(BaseE2ETest):
