@@ -1,12 +1,9 @@
 import os
 
-
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from playwright.sync_api import Browser, sync_playwright
 
-
 from app.models import User
-
 
 os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
 playwright = sync_playwright().start()
