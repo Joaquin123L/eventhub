@@ -26,5 +26,5 @@ COPY . .
 # Exponer el puerto que usará la app (Django usa el 8000 por defecto)
 EXPOSE 8000
 
-# Comando para ejecutar la app usando el servidor de desarrollo de Django
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+# Ejecuta las migraciones y luego levanta la app con Gunicorn en producción
+CMD ["sh", "-c", "python manage.py migrate && gunicorn eventhub.wsgi:application --bind 0.0.0.0:8000"]
