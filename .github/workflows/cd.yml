@@ -1,0 +1,40 @@
+name: Entrega Continua (CD)
+
+on:
+    release:
+        types: [published]
+
+env:
+    IMAGE_NAME: lucioguerra/eventhub
+    RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+    RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+
+jobs:
+    deploy:
+        name: Deploy a producción
+        runs-on: ubuntu-latest
+        needs: build  # nombre del job de CI si lo tenés en otro workflow (con `workflow_run` también es posible)
+
+        steps:
+            - name: Checkout del código
+              uses: actions/checkout@v4
+
+            - name: Log in to Docker Hub
+              uses: docker/login-action@v3
+              with:
+                  username: ${{ secrets.DOCKERHUB_USERNAME }}
+                  password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+            - name: Build y push de imagen a Docker Hub
+              uses: docker/build-push-action@v5
+              with:
+                  context: .
+                  push: true
+                  tags: |
+                    ${{ env.IMAGE_NAME }}:latest
+                    ${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+
+            - name: Llamar a Render para redeploy
+              run: |
+                  curl -X POST https://api.render.com/deploy/srv-${{ env.RENDER_SERVICE_ID }} \
+                  -H 'Authorization: Bearer ${{ env.RENDER_API_KEY }}'
