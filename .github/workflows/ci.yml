@@ -17,6 +17,7 @@ env:
   LOGIN_REDIRECT_URL: ${{ secrets.LOGIN_REDIRECT_URL }}
   LOGIN_URL: ${{ secrets.LOGIN_URL }}
   LOGOUT_REDIRECT_URL: ${{ secrets.LOGOUT_REDIRECT_URL }}
+  CSRF_TRUSTED_ORIGIN: ${{ secrets.CSRF_TRUSTED_ORIGIN }}
 
 jobs:
   lint:
@@ -66,6 +67,7 @@ jobs:
           LOGIN_REDIRECT_URL=${LOGIN_REDIRECT_URL}
           LOGIN_URL=${LOGIN_URL}
           LOGOUT_REDIRECT_URL=${LOGOUT_REDIRECT_URL}
+          CSRF_TRUSTED_ORIGIN: ${secrets.CSRF_TRUSTED_ORIGIN}
           EOF
 
       - name: Build Docker image (Validation)
