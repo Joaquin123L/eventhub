@@ -1,8 +1,10 @@
-from django.urls import reverse
-from app.test.test_e2e.base import BaseE2ETest
-from app.models import User, Event, Ticket, SatisfactionSurvey
-from django.utils import timezone
 from datetime import timedelta
+
+from django.urls import reverse
+from django.utils import timezone
+
+from app.models import Event, SatisfactionSurvey, Ticket, User
+from app.test.test_e2e.base import BaseE2ETest
 
 
 class SatisfactionSurveyE2ETest(BaseE2ETest):
