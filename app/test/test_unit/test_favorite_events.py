@@ -1,12 +1,10 @@
-from pydoc import describe
+
+from datetime import timedelta
 
 from django.test import TestCase
 from django.utils.timezone import now
 
-from app.models import Event, Favorite, Category, User
-
-from datetime import timedelta
-
+from app.models import Event, Favorite, User
 
 
 class ToggleFavoriteViewTest(TestCase):

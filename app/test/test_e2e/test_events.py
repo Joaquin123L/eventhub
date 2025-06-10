@@ -1,12 +1,11 @@
 import datetime
 import re
 import unittest
-from datetime import timedelta
+
 from django.utils import timezone
 from playwright.sync_api import expect
 
-
-from app.models import Event, User, Category, Venue
+from app.models import Category, Event, User, Venue
 
 from app.test.test_e2e.base import BaseE2ETest
 
@@ -441,6 +440,7 @@ class EventCRUDTest(EventBaseTest):
 class EventStateFlowE2ETest(EventBaseTest):
 
     def test_complete_event_state_flow(self):
+
 
         self.event1.capacity = 2
         self.event1.save()
