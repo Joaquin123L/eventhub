@@ -10,7 +10,12 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.0/ref/settings/
 """
 
+import os
 from pathlib import Path
+
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,17 +25,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure--f67ll=2-b2qolla9=1f8mtg@s=l8^y8aj=@ij-0f4)eg@%8(0"
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = ['eventhub-rvco.onrender.com', 'localhost']
+DEBUG = os.getenv("DJANGO_DEBUG") == "True"
 
 CSRF_TRUSTED_ORIGINS = [
     "https://eventhub-rvco.onrender.com",
 ]
 
+ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "").split(",")
 
 
 # Application definition
@@ -81,8 +85,8 @@ WSGI_APPLICATION = "eventhub.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "ENGINE": os.getenv("DB_ENGINE", "django.db.backends.sqlite3"),
+        "NAME": os.getenv("DB_NAME", BASE_DIR / "db.sqlite3"),
     }
 }
 
@@ -115,9 +119,9 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 # https://docs.djangoproject.com/en/5.0/topics/i18n/
 
 AUTH_USER_MODEL = "app.User"
-LANGUAGE_CODE = "es-ar"
+LANGUAGE_CODE = os.getenv("LANGUAGE_CODE", "es-ar")
 
-TIME_ZONE = "UTC"
+TIME_ZONE = os.getenv("TIME_ZONE", "UTC")
 
 USE_I18N = True
 
@@ -134,8 +138,8 @@ STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-LOGIN_REDIRECT_URL = "/events/"
+LOGIN_REDIRECT_URL = os.getenv("LOGIN_REDIRECT_URL", "/events/")
 
-LOGIN_URL = "/accounts/login/"
+LOGIN_URL = os.getenv("LOGIN_URL", "/accounts/login/")
 
-LOGOUT_REDIRECT_URL = "/accounts/login/"
+LOGOUT_REDIRECT_URL = os.getenv("LOGOUT_REDIRECT_URL", "/accounts/login/")

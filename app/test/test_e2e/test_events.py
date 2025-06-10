@@ -1,12 +1,11 @@
 import datetime
 import re
 import unittest
-from datetime import timedelta
+
 from django.utils import timezone
 from playwright.sync_api import expect
 
-from app.models import Event, User, Category, Venue
-
+from app.models import Category, Event, User, Venue
 from app.test.test_e2e.base import BaseE2ETest
 
 
@@ -442,7 +441,7 @@ class EventStateFlowE2ETest(EventBaseTest):
     def test_complete_event_state_flow(self):
         # 1. Verificar estado inicial (Activo)
         self.page.goto(f"{self.live_server_url}/event/{self.event1.pk}/")
-        status_element = self.page.get_by_text("Estado: Activo")
+        self.page.get_by_text("Estado: Activo")
         self.assertTrue(self.event1.status,'Activo')
         print("Paso 1: Evento creado con estado Activo - OK")
 

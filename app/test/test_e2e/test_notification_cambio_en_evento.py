@@ -1,10 +1,9 @@
-import re
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from django.utils import timezone
 from playwright.sync_api import expect
 
-from app.models import User, Event, Category, Venue, Ticket, Notification, NotificationUser
+from app.models import Category, Event, Notification, NotificationUser, Ticket, User, Venue
 from app.test.test_e2e.base import BaseE2ETest
 
 
