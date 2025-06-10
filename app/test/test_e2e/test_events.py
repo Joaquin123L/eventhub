@@ -505,5 +505,24 @@ class EventStateFlowE2ETest(EventBaseTest):
         expect(fila_correcta.locator("td").nth(5)).to_have_text("Activo")
         print("Paso 4: El evento volvio al estado Activo - OK")
 
-        self.page.goto(f"{self.live_server_url}/accounts/logout/", wait_until="networkidle")
+    def test_complete_event_state_Cancelar(self):
+        self.login_user("organizador", "password123")
+        #Se corrobora que el evento existe y esta activo
+        self.page.goto(f"{self.live_server_url}/events/?category=&venue=&order=asc&ver_pasados=on/", wait_until="networkidle")
+        fila_correcta = self.page.locator("table tbody tr", has_text="Evento de prueba 1").first
+        expect(fila_correcta.locator("td").nth(5)).to_have_text("Activo")
+
+        print("Paso 1: Evento esta Activo - OK")
+        #Buscamos el evento 1 y lo cancelamos
+        fila_evento = self.page.locator("table tbody tr", has_text="Evento de prueba 1").first
+        cancel_button = fila_evento.locator("form[action*='/cancel/'] button[type='submit']")
+        cancel_button.click()
+        #mostramos eventos pasados para ver el cancelado
+        self.page.locator("input#ver_pasados").check()
+        self.page.wait_for_load_state("networkidle")
+
+        #revisamos si el evento 1 esta cancelado
+        fila_evento = self.page.locator("table tbody tr", has_text="Evento de prueba 1").first
+        estado_td = fila_evento.locator("td").nth(5)
+        expect(estado_td).to_have_text("Cancelado")
 
