@@ -1,9 +1,11 @@
 import datetime
 import re
 import unittest
+
 from django.utils import timezone
 from playwright.sync_api import expect
-from app.models import Event, User, Category, Venue
+
+from app.models import Category, Event, User, Venue
 from app.test.test_e2e.base import BaseE2ETest
 
 
