@@ -1,8 +1,10 @@
 name: Entrega Continua (CD)
 
 on:
-    release:
-        types: [published]
+    workflow_run:
+        workflows: ["CI Pipeline"]
+        types:
+        - completed
 
 env:
     IMAGE_NAME: lucioguerra/eventhub
@@ -13,8 +15,9 @@ jobs:
     deploy:
         name: Deploy a producción
         runs-on: ubuntu-latest
-        needs: build  # nombre del job de CI si lo tenés en otro workflow (con `workflow_run` también es posible)
-
+        if: ${{ github.event_name == 'workflow_run' &&
+            github.event.workflow_run.event == 'release' &&
+            github.event.workflow_run.conclusion == 'success' }}
         steps:
             - name: Checkout del código
               uses: actions/checkout@v4
@@ -36,5 +39,5 @@ jobs:
 
             - name: Llamar a Render para redeploy
               run: |
-                  curl -X POST https://api.render.com/deploy/srv-${{ env.RENDER_SERVICE_ID }} \
+                  curl -X POST https://api.render.com/v1/services/${{ env.RENDER_SERVICE_ID }}/deploys \
                   -H 'Authorization: Bearer ${{ env.RENDER_API_KEY }}'

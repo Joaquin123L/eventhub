@@ -3,6 +3,8 @@ name: CI Pipeline
 on:
   pull_request:
     branches: [main]
+  release:
+    types: [published]
 
 env:
   DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
