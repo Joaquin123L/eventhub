@@ -4,7 +4,7 @@ import unittest
 from datetime import timedelta
 from django.utils import timezone
 from playwright.sync_api import expect
-import time
+
 
 from app.models import Event, User, Category, Venue
 
@@ -465,9 +465,10 @@ class EventStateFlowE2ETest(EventBaseTest):
         self.page.fill("#quantity", "1")
 
         # Enviar formulario
-        self.page.click("#submit-btn")
-        time.sleep(2)
-        #porque tarda en procesar el pago
+        with self.page.expect_navigation(wait_until="networkidle"):
+            self.page.click("#submit-btn")
+
+
         # Verificar que el estado sigue siendo Activo (aún hay capacidad)
         self.page.goto(f"{self.live_server_url}/events/")
         fila_correcta = self.page.locator("table tbody tr", has_text="Evento de prueba 1").first
@@ -485,9 +486,9 @@ class EventStateFlowE2ETest(EventBaseTest):
         self.page.select_option("select[name='type']", "general")
         self.page.fill("#quantity", "1")
 
-        self.page.click("#submit-btn")
-        time.sleep(2)
-        #porque tarda en procesar el pago
+        with self.page.expect_navigation(wait_until="networkidle"):
+            self.page.click("#submit-btn")
+
         self.page.goto(f"{self.live_server_url}/events/")
         fila_correcta = self.page.locator("table tbody tr", has_text="Evento de prueba 1").first
         expect(fila_correcta.locator("td").nth(5)).to_have_text("Agotado")
@@ -525,4 +526,5 @@ class EventStateFlowE2ETest(EventBaseTest):
         fila_evento = self.page.locator("table tbody tr", has_text="Evento de prueba 1").first
         estado_td = fila_evento.locator("td").nth(5)
         expect(estado_td).to_have_text("Cancelado")
+        print("Paso 2: Evento esta Cancelado - OK")
 
