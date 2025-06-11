@@ -35,9 +35,17 @@ jobs:
                   push: true
                   tags: |
                     ${{ env.IMAGE_NAME }}:latest
-                    ${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+                    ${{ env.IMAGE_NAME }}:${{ github.event.release.tag_name }}
 
             - name: Llamar a Render para redeploy
               run: |
-                  curl -X POST https://api.render.com/v1/services/${{ env.RENDER_SERVICE_ID }}/deploys \
-                  -H 'Authorization: Bearer ${{ env.RENDER_API_KEY }}'
+                  curl --request POST \
+                        --url https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys \
+                        --header 'accept: application/json' \
+                        --header 'authorization: Bearer ${RENDER_API_KEY}' \
+                        --header 'content-type: application/json' \
+                        --data '
+                  {
+                      "clearCache": "do_not_clear"
+                  }
+                    '
