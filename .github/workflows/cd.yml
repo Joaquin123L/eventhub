@@ -35,7 +35,7 @@ jobs:
                   push: true
                   tags: |
                     ${{ env.IMAGE_NAME }}:latest
-                    ${{ env.IMAGE_NAME }}:${{ github.event.release.tag_name }}
+                    ${{ env.IMAGE_NAME }}:${{ github.ref_name }}
 
             - name: Llamar a Render para redeploy
               run: |
