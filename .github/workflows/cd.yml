@@ -6,6 +6,12 @@ on:
         types:
         - completed
 
+    pull_request:
+      types:
+      - closed
+      branches:
+        - main
+
 env:
     IMAGE_NAME: lucioguerra/eventhub
     RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
@@ -15,9 +21,14 @@ jobs:
     deploy:
         name: Deploy a producción
         runs-on: ubuntu-latest
-        if: ${{ github.event_name == 'workflow_run' &&
-            github.event.workflow_run.event == 'release' &&
-            github.event.workflow_run.conclusion == 'success' }}
+        if: >-
+          (github.event_name == 'workflow_run' &&
+            github.event.workflow_run.conclusion == 'success' &&
+            (github.event.workflow_run.event == 'release'))
+            ||
+            (github.event_name == 'pull_request' &&
+            github.event.pull_request.merged == true &&
+            github.event.pull_request.base.ref == 'main')
         steps:
             - name: Checkout del código
               uses: actions/checkout@v4
